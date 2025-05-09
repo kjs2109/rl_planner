@@ -12,21 +12,17 @@ class TrajectoryOdometryParser(Node):
     def __init__(self):
         super().__init__('trajectory_parser')
         self.id = 0  
-        self.save_interval = 10  # N개의 샘플마다 저장
+        self.save_interval = 10  
         self.filename = 'synced_trajectory_odometry.json'
 
-        # Timer: 0.5초마다 sync 시도
         self.create_timer(0.5, self.timer_callback)
 
-        # Subscribe to topics
         self.create_subscription(Trajectory, '/planning/scenario_planning/trajectory', self.trajectory_callback, 10)
         self.create_subscription(Odometry, '/localization/kinematic_state', self.odometry_callback, 10)
 
-        # Buffers
         self.trajectory_buffer = deque(maxlen=100)
         self.odometry_buffer = deque(maxlen=100)
 
-        # Synced data
         self.synced_data = []
 
         self.get_logger().info('Trajectory and Odometry Parser Node has been started.')
@@ -40,7 +36,6 @@ class TrajectoryOdometryParser(Node):
         self.odometry_buffer.append((now, msg))
 
     def timer_callback(self):
-        # 주기적으로 sync 시도
         self.sync_data()
 
     def sync_data(self):

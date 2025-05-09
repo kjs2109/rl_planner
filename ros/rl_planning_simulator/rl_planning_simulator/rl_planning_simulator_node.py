@@ -8,7 +8,6 @@ from autoware_perception_msgs.msg import PredictedObjects
 from nav_msgs.msg import Odometry
 from collections import deque
 
-from env.campus_map import CampusMap 
 from env.lanelet2_map_parser import LaneletMapParser
 from env.campus_env_base import CampusEnvBase
 from env.vehicle import Status
@@ -45,13 +44,11 @@ class PlanningSimulator(Node):
         self.create_subscription(PoseWithCovarianceStamped, '/initialpose', self.initialpose_callback, 1) 
         self.create_subscription(PredictedObjects, '/perception/object_recognition/objects', self.predicted_objects_callback, 1)
 
-        # Timer: 0.5초마다 sync 시도
         self.create_timer(1.0, self.timer_callback)
 
-        # Subscribe to topics
         self.create_subscription(Trajectory, '/planning/scenario_planning/trajectory', self.trajectory_callback, 10)
         self.create_subscription(Odometry, '/localization/kinematic_state', self.odometry_callback, 10)
-        # Buffers
+
         self.trajectory_buffer = deque(maxlen=20)
         self.odometry_buffer = deque(maxlen=20)
         self.predicted_objects_buffer = deque(maxlen=20)
@@ -152,14 +149,11 @@ class PlanningSimulator(Node):
         env.reset(case_id=None, scene_info=scene_info)
         step_count = 0
         while True:
-            # 랜덤한 액션 생성: [steer, speed]
             # action = env.action_space.sample()
             action = sample_straight_forward_action()
 
-            # 환경에 한 스텝 적용
             obs, reward_info, status, info = env.step(action)
 
-            # 출력
             # obs, reward_info, status, info = env.step()
             print("LIDAR:", obs['lidar'].shape)       # if use_lidar_observation is True
             print("Image:", obs['img'].shape)   # if use_img_observation is True
@@ -168,7 +162,6 @@ class PlanningSimulator(Node):
             print(f"Step: {step_count:3d}, Status: {status.name}, Reward: {reward_info}")
             print('--'*50)
 
-            # 종료 조건
             if status != Status.CONTINUE:
                 print(f"Episode finished with status: {status.name}")
                 break

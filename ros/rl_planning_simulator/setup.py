@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'rl_planning_simulator_node=rl_planning_simulator.rl_planning_simulator_node:main',
+            'real_time_simulator=rl_planning_simulator.real_time_simulator:main',
         ],
     },
 )
