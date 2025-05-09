@@ -6,7 +6,7 @@ import numpy as np
 import gym 
 from gym import spaces 
 from gym.error import DependencyNotInstalled 
-from shapely.geometry import Polygon 
+from shapely.geometry import Polygon, Point 
 from shapely.affinity import affine_transform 
 try:
     import pygame 
@@ -118,32 +118,12 @@ class CampusEnvBase(gym.Env):
         self.matrix = self.coord_transform_matrix() 
         return self.step()[0]
 
-    # def coord_transform_matrix(self) -> list:
-    #     """Get the transform matrix that convert the real world coordinate to the pygame coordinate.
-    #      [k 0 bx
-    #       0 k by]
-    #     """
-    #     k = K
-    #     bx = 0.5 * (WIN_W - k * (self.map.xmax + self.map.xmin))
-    #     by = 0.5 * (WIN_H - k * (self.map.ymax + self.map.ymin))
-    #     self.k = k
-    #     return [k, 0, 0, k, bx, by]
-
-    # def coord_transform_matrix(self) -> list:
-    #     k = K
-    #     bx = 0.5 * (WIN_W - k * (self.map.xmax + self.map.xmin))
-    #     by = 0.5 * (WIN_H + k * (self.map.ymax + self.map.ymin))  # +k
-    #     self.k = k
-    #     return [k, 0, 0, -k, bx, by] 
-
     def coord_transform_matrix(self) -> list:
         k = K
         ego_x = self.vehicle.state.loc.x
         ego_y = self.vehicle.state.loc.y
-
-        # 차량 위치를 화면 중앙에 놓기 위한 보정
         bx = WIN_W / 2 - k * ego_x
-        by = (WIN_H * 2 / 3) + k * ego_y  # y축 반전 고려
+        by = (WIN_H * 2 / 3) + k * ego_y  
 
         self.k = k
         return [k, 0, 0, -k, bx, by] 
@@ -173,7 +153,7 @@ class CampusEnvBase(gym.Env):
         vehicle_box = Polygon(self.vehicle.box) 
         dest_box = Polygon(self.map.dest_box) 
         union_area = vehicle_box.intersection(dest_box).area
-        if union_area / dest_box.area > 0.95:
+        if union_area / dest_box.area > 0.8:
             return True
         return False
 
@@ -250,19 +230,23 @@ class CampusEnvBase(gym.Env):
         ``info`` (`OrderedDict`): other information.
         '''
         assert self.vehicle is not None, "The vehicle is not initialized." 
-        prev_state = self.vehicle.state 
+        prev_state = self.vehicle.state  # State  
         collide = False 
         arrive = False 
         if action is not None:
-            for simu_step_num in range(NUM_STEP): 
-                # 현재 action으로 NUM_STEP 만큼 vehicle 이동 
-                prev_info = self.vehicle.step(action, step_time=1) 
+            # 0.5s 
+            # NUM_STEP = 10
+            for simu_step_num in range(NUM_STEP):  
+                # 0.05s 후 차량 위치 계산. trajectory 저장 
+                prev_info = self.vehicle.step(action, step_time=1) # 0.05s 
+
+                # 이벤트 처리 
                 if self._check_arrived(): 
                     arrive = True 
                     break 
-                if self._detect_collision(): 
+                if self._detect_collision():  
                     if simu_step_num == 0:
-                        collide = False  # ENV_COLLIDE 
+                        collide = True 
                         self.vehicle.retreat(prev_info) 
                     else: 
                         self.vehicle.retreat(prev_info)     
@@ -271,14 +255,16 @@ class CampusEnvBase(gym.Env):
 
             simu_step_num += 1 
             if simu_step_num: 
-                del self.vehicle.trajectory[-simu_step_num:-1]  # remove redundant trajectory
+                # 현재 스템의 마지막 trjectory를 제외한 나머지는 제거 
+                del self.vehicle.trajectory[-simu_step_num:-1] 
 
         self.t += 1  # time step 
-        observation = self.render(self.render_mode)  
         if arrive:
             status = Status.ARRIVED 
         else: 
-            status = Status.COLLIDED if collide else self._check_status() 
+            status = Status.COLLIDED if collide else self._check_status()  # 최종 상태 확인
+        self.status = status  
+        observation = self.render(self.render_mode)  
 
         reward_list = self.get_reward(status, prev_state)  
         reward_info = OrderedDict({
@@ -296,6 +282,23 @@ class CampusEnvBase(gym.Env):
         #         info['path_to_dest'] = rs_path_to_dest 
 
         return observation, reward_info, status, info 
+    
+    def _draw_hud(self, surface: pygame.Surface, vehicle, clock):  # , step_count: int, distance_to_dest: float):
+        font = pygame.font.SysFont(None, 20)
+        lines = []
+
+        lines.append(f"FPS: {clock.get_fps():.1f}")
+        lines.append("Status: " + str(self.status.name))
+        lines.append(f"step: {self.t:.1f} (*0.5s)")
+        lines.append(f"Speed: {vehicle.state.speed:.2f} m/s")
+        lines.append(f"Steering: {vehicle.state.steering:.2f} rad") 
+        lines.append(f"Heading: {math.degrees(vehicle.state.heading):.2f} deg")
+        # lines.append(f"Step: {step_count}")
+        # lines.append(f"Distance to Dest: {distance_to_dest:.2f} m")
+
+        for i, text in enumerate(lines):
+            text_surface = font.render(text, True, (0, 0, 0))  
+            surface.blit(text_surface, (15, 15 + i * 18))
 
     def _render(self, surface:pygame.Surface): 
         surface.fill(BG_COLOR) 
@@ -308,13 +311,13 @@ class CampusEnvBase(gym.Env):
             pygame.draw.polygon(surface, OBSTACLE_COLOR, self._coord_transform(obstacle))
 
         pygame.draw.polygon(surface, START_COLOR, self._coord_transform(self.map.start_box), width=1) 
-        pygame.draw.polygon(surface, DEST_COLOR, self._coord_transform(self.map.dest_box), width=1)
+        pygame.draw.polygon(surface, DEST_COLOR, self._coord_transform(self.map.dest_box))
         pygame.draw.polygon(surface, self.vehicle.color, self._coord_transform(self.vehicle.box))
 
         if RENDER_TRAJ and len(self.vehicle.trajectory) > 1:
             render_len = min(len(self.vehicle.trajectory), TRAJ_RENDER_LEN)
             for i in range(render_len):
-                vehicle_box = self.vehicle.trajectory[-(render_len-i)].create_box()  # trajectory.creat_box ?? 
+                vehicle_box = self.vehicle.trajectory[-(render_len-i)].create_box() 
                 # pygame.draw.polygon(surface, TRAJ_COLORS[-(render_len-i)], self._coord_transform(vehicle_box)) 
                 points = self._coord_transform(vehicle_box)
                 temp_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
@@ -326,6 +329,8 @@ class CampusEnvBase(gym.Env):
                 # # 2. draw trajectory center point as a small circle
                 # center = (rear_x, rear_y) # self._coord_transform_point(rear_x, rear_y)
                 # pygame.draw.circle(surface, (150, 200, 10), center, 2)  # red dot, radius=2
+        
+        self._draw_hud(surface, self.vehicle, self.clock)  # , self.step_count, self.vehicle.dist_to_dest())
 
     def _get_img_observation(self, surface:pygame.Surface): 
         angle = self.vehicle.state.heading 
@@ -355,6 +360,7 @@ class CampusEnvBase(gym.Env):
 
     def _get_lidar_observation(self): 
         obs_list = [obs.shape for obs in self.map.obstacles]
+        obs_list += [obs.shape for obs in self.map.zoomed_non_drivable_area]
         lidar_view = self.lidar.get_observation(self.vehicle.state, obs_list)
         return lidar_view
 
@@ -390,8 +396,20 @@ class CampusEnvBase(gym.Env):
         if self.use_img_observation:
             raw_observation = self._get_img_observation(self.screen) 
             observation['img'] = self._process_img_observation(raw_observation) 
+            # self.img_processor.save_processed_img(observation['img'], path='img')
         if self.use_lidar_observation: 
             observation['lidar'] = self._get_lidar_observation() 
+
+            # lidar_range_array = observation['lidar']
+            # origin = self._coord_transform(Point(self.vehicle.state.loc.x, self.vehicle.state.loc.y))[0]
+
+            # for i, r in enumerate(lidar_range_array):
+            #     angle = i * 2 * np.pi / self.lidar.lidar_num + self.vehicle.state.heading
+            #     x = self.vehicle.state.loc.x + r * np.cos(angle)
+            #     y = self.vehicle.state.loc.y + r * np.sin(angle)
+
+            #     screen_x, screen_y = self._coord_transform(Point(x, y))[0]
+            #     pygame.draw.circle(self.screen, (255, 0, 0), (screen_x, screen_y), radius=2)
 
         observation['target'] = self._get_targt_repr() 
         pygame.display.update() 
