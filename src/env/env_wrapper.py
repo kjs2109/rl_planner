@@ -8,6 +8,7 @@ from configs import REWARD_WEIGHT, REWARD_RATIO
 
 
 def reward_shaping(*args):
+    # info = {'reward_info': reward_info, 'status': status} 
     obs, reward_info, status, info = args 
     if status == Status.CONTINUE: 
         reward = 0 
@@ -16,11 +17,11 @@ def reward_shaping(*args):
     elif status == Status.OUTBOUND: 
         reward = -50 
     elif status == Status.OUTTIME: 
-        reward = -1 
+        reward = -5 
     elif status == Status.ARRIVED: 
         reward = 50 
     elif status == Status.COLLIDED: 
-        reward = -50 
+        reward = -10 
     else:
         print(status) 
         print('Never reach here !!!') 
