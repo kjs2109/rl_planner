@@ -413,6 +413,6 @@ if __name__ == "__main__":
     map_path = '/media/k/part11/workspace/rl_planner/data/lanelet2_map/parking_lot_lanelet2_map_v1.osm'
     trajectory_path = '/media/k/part11/workspace/rl_planner/data/trajectory/parking_lot_trajectory_odometry.json' 
     campus_map = CampusMap(map_path, trajectory_path) 
-    for i in range(156):
-        campus_map.generate_parking_scene(i)
+    # for i in range(156):
+    #     campus_map.generate_parking_scene(i)
     campus_map.generate_parking_scene(40)

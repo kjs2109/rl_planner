@@ -47,8 +47,8 @@ class State:
 class KSModel(object):
     def __init__(self, wheel_base:float, step_len:float, n_step:int, speed_range:list, angle_range:list):
         self.wheel_base = wheel_base 
-        self.step_len = step_len 
-        self.n_step = n_step 
+        self.step_len = step_len       # 0.05s 
+        self.n_step = n_step      
         self.speed_range = speed_range 
         self.angle_range = angle_range
         self.mini_iter = 20 
@@ -62,8 +62,8 @@ class KSModel(object):
         new_state.speed = np.clip(new_state.speed, self.speed_range[0], self.speed_range[1]) 
         new_state.steering = np.clip(new_state.steering, self.angle_range[0], self.angle_range[1]) 
 
-        for _ in range(step_time):
-            for _ in range(self.mini_iter):
+        for _ in range(step_time):  # 1 step = 0.05s 
+            for _ in range(self.mini_iter):  # dt = 0.0025s
                 x += new_state.speed * np.cos(new_state.heading) * self.step_len/self.mini_iter 
                 y += new_state.speed * np.sin(new_state.heading) * self.step_len/self.mini_iter
                 new_state.heading += new_state.speed * np.tan(new_state.steering) / self.wheel_base * self.step_len/self.mini_iter 
@@ -115,3 +115,8 @@ class Vehicle(object):
     def retreat(self, prev_info):
         self.state, self.box, self.v_max, self.v_min = prev_info 
         self.trajectory.pop(-1) 
+
+    def get_ego_box(self): 
+        return State((0, 0, math.pi/2)).create_box(mode='ego_vehicle')  
+
+

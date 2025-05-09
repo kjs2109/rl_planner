@@ -319,8 +319,6 @@ class SACAgent(AgentBase):
         # for debug
         a = actor_loss.detach().cpu().numpy()
         b = q1_loss.item()
-        self.actor_loss_list.append(a)
-        self.critic_loss_list.append(b)
         return a, b
 
     def save(self, path: str = None, params_only: bool = None) -> None:

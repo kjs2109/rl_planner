@@ -127,3 +127,4 @@ class LidarSimlator():
         lidar_obs = np.min(np.sqrt(raw_x**2 + raw_y**2), axis=1) # (120,)
         lidar_obs = np.clip(lidar_obs, 0, self.lidar_range)
         return lidar_obs
+    

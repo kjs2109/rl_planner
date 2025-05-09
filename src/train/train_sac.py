@@ -61,7 +61,7 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--agent_ckpt', type=str, default=None)  # '/media/k/part11/workspace/rl_planner/src/log/exp/sac_20250507_214109/SAC_6.pt' 
-    parser.add_argument('--img_ckpt', type=str, default=None)    # './model/ckpt/autoencoder.pt' 
+    parser.add_argument('--img_ckpt', type=str, default=None)  # './model/ckpt/autoencoder.pt' 
     parser.add_argument('--map_path', type=str, default='../data/lanelet2_map/parking_lot_lanelet2_map_v1.osm') 
     parser.add_argument('--trajectory_path', type=str, default='../data/trajectory/synced_trajectory_odometry_v1.json')
     parser.add_argument('--train_episode', type=int, default=100000)
@@ -133,9 +133,9 @@ if __name__=='__main__':
 
     scene_info = {'mode':'normal'}
     for i in range(args.train_episode):
-        print(f'[Epoisod: {i}]') 
-        print('-'*50)
         case_id = scene_chooser.choose_case() 
+        print(f'[Epoisod: {i}] case_id: {case_id}')
+        print('-'*50)
 
         obs = env.reset(case_id, scene_info)
         case_id_list.append(case_id) 
@@ -164,24 +164,24 @@ if __name__=='__main__':
             total_reward += reward 
             obs = next_obs 
 
-            if total_step_num > agent.configs.memory_size and total_step_num%10: 
+            if total_step_num > agent.configs.memory_size and total_step_num%10==0: 
                 actor_loss, critic_loss = agent.update()
+                agent.arctor_loss_list.append(actor_loss) 
+                agent.critic_loss_list.append(critic_loss) 
+
                 if total_step_num%200==0:
+                    print(f'actor_loss: {actor_loss}, critic_loss: {critic_loss}')
                     writer.add_scalar("actor_loss", actor_loss, i)
                     writer.add_scalar("critic_loss", critic_loss, i) 
 
-            # if status != Status.CONTINUE:
-            #     # TODO: done에 에피소드 종료 정보 반영 필요 
-            #     print(f"Episode finished with status: {status.name}")
-            #     break
-
             if done:
+                print(f'Status: {info["status"]}', end=' ')
                 if info['status'] == Status.ARRIVED: 
-                    print('success!!')
+                    print('[success]')
                     succ_record.append(1) 
                     scene_chooser.update_success_record(1, case_id) 
                 else:
-                    print('failed!!')
+                    print('[failed]')
                     succ_record.append(0) 
                     scene_chooser.update_success_record(0, case_id) 
             
@@ -195,7 +195,7 @@ if __name__=='__main__':
         writer.add_scalar("success_rate", success_rate, i)  # 최근 100개 에피소드 성공률 
         writer.add_scalar("step_num", step_num, i)          # 현재 episode의 step 수 
 
-        print(f'success rate: {np.sum(succ_record[-100:])}/{len(succ_record[-100:])}')
+        print(f'success rate: {np.sum(succ_record[-100:])}/{len(succ_record[-100:])} | best success rate: {best_success_rate}')
         print(f'step_num: {step_num}')
         print(f'total_reward : {total_reward} (total reward of current episode)')
         print(f'avg_reward: {np.mean(reward_per_state_list[-1000:])} (recent average reward per state)')
