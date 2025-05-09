@@ -42,8 +42,8 @@ COLOR_POOL = [
 
 VALID_SPEED = [-2.5, 2.5]
 VALID_STEER = [-0.75, 0.75]
-VALID_ACCEL = [-1.0, 1.0]
-VALID_ANGULAR_SPEED = [-0.5, 0.5]
+# VALID_ACCEL = [-1.0, 1.0]
+# VALID_ANGULAR_SPEED = [-0.5, 0.5]
 
 NUM_STEP = 10
 STEP_LENGTH = 0.05
@@ -53,24 +53,25 @@ STEP_LENGTH = 0.05
 FPS = 100
 K = 12 # the render scale
 WIN_W = 600
-WIN_H = 700
+WIN_H = 800
 
 # camera 
 USE_IMG = True
-OBS_W = 256 
-OBS_H = 256
+R = 2
+OBS_W = 256*R 
+OBS_H = 256*R
 
 # lidar 
 USE_LIDAR = True
-LIDAR_RANGE = 10.0
-LIDAR_NUM = 120
+LIDAR_RANGE = 20.0
+LIDAR_NUM = 200
 ORIGIN = Point((0,0))
 
 # config 
 BG_COLOR = (255, 255, 255, 255)
 START_COLOR = (100, 149, 237, 255)
 DEST_COLOR = (69, 139, 0, 255)
-OBSTACLE_COLOR = (150, 150, 150, 255)
+OBSTACLE_COLOR = (255, 0, 0, 255)
 NON_DRIVABLE_COLOR = (200, 200, 200, 255)
 RENDER_TRAJ = True
 TRAJ_COLOR_HIGH = (10, 10, 200, 255)
@@ -81,7 +82,7 @@ TRAJ_COLORS = list(map(tuple,np.linspace(\
 
 # constraints 
 TOLERANT_TIME = 200
-MAX_DIST_TO_DEST = 20
+MAX_DIST_TO_DEST = 30
 
 # reward 
 REWARD_RATIO = 0.1
@@ -130,7 +131,7 @@ ACTOR_CONFIGS = {
     'lidar_shape':LIDAR_NUM,
     'target_shape':5,
     'action_mask_shape':N_DISCRETE_ACTION if USE_ACTION_MASK else None,
-    'img_shape':(3,64,64) if USE_IMG else None,
+    'img_shape':(3,64*R,64*R) if USE_IMG else None,
     'output_size':2,
     'embed_size':128,
     'hidden_size':256,
@@ -150,7 +151,7 @@ CRITIC_CONFIGS = {
     'lidar_shape':LIDAR_NUM,
     'target_shape':5,
     'action_mask_shape':N_DISCRETE_ACTION if USE_ACTION_MASK else None,
-    'img_shape':(3,64,64) if USE_IMG else None,
+    'img_shape':(3,64*R,64*R) if USE_IMG else None,
     'output_size':1,
     'embed_size':128,
     'hidden_size':256,
