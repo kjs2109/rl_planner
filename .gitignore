@@ -9,4 +9,6 @@ __pycache__/
 */*/log/
 /rl_env/
 
-/data/
+/data/bags
+/data/lanelet2_map
+/data/trajectory
