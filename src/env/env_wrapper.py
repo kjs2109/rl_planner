@@ -65,9 +65,6 @@ class CampusEnvWrapper(Wrapper):
 
         return obs, reward, done, info 
     
-    def step_(self, action=None):
-        return self.env.step(action) 
-    
     def reset(self, *args):
         obs = self.env.reset(*args) 
         return self.obs_func(obs)

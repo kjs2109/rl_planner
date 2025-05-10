@@ -110,13 +110,15 @@ class CampusEnvBase(gym.Env):
         self.prev_reward = 0.0 
         self.accum_arrive_reward = 0.0 
         self.t = 0.0 
-        if case_id is not None: 
+        if case_id is not None:
+            # training env  
             initial_state = self.map.reset(case_id=case_id, scene_info=scene_info) 
         else: 
+            # simulator env 
             initial_state = self.map.reset(scene_info=scene_info)
         self.vehicle.reset(initial_state) 
         self.matrix = self.coord_transform_matrix() 
-        return self.step()[0]
+        return self.step()[0]  # (observation, reward_info, status, info)
 
     def coord_transform_matrix(self) -> list:
         k = K
