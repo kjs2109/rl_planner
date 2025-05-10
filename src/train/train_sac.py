@@ -62,8 +62,8 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--agent_ckpt', type=str, default=None)  # '/media/k/part11/workspace/rl_planner/src/log/exp/sac_20250507_214109/SAC_6.pt' 
     parser.add_argument('--img_ckpt', type=str, default=None)  # './model/ckpt/autoencoder.pt' 
-    parser.add_argument('--map_path', type=str, default='../data/lanelet2_map/parking_lot_lanelet2_map_v1.osm') 
-    parser.add_argument('--trajectory_path', type=str, default='../data/trajectory/synced_trajectory_odometry_v1.json')
+    parser.add_argument('--map_path', type=str, default='../data/lanelet2_map/campus_lanelet2_map_v1.osm') 
+    parser.add_argument('--trajectory_path', type=str, default='../data/trajectory/campus_trajectory_data_v1.json')
     parser.add_argument('--train_episode', type=int, default=100000)
     parser.add_argument('--eval_episode', type=int, default=2000)
     parser.add_argument('--verbose', type=bool, default=True)
@@ -131,7 +131,7 @@ if __name__=='__main__':
     total_step_num = 0
     best_success_rate = 0 
 
-    scene_info = {'mode':'normal'}
+    scene_info = {'mode':'normal_parking'}
     for i in range(args.train_episode):
         case_id = scene_chooser.choose_case() 
         print(f'[Epoisod: {i}] case_id: {case_id}')
@@ -166,7 +166,7 @@ if __name__=='__main__':
 
             if total_step_num > agent.configs.memory_size and total_step_num%10==0: 
                 actor_loss, critic_loss = agent.update()
-                agent.arctor_loss_list.append(actor_loss) 
+                agent.actor_loss_list.append(actor_loss) 
                 agent.critic_loss_list.append(critic_loss) 
 
                 if total_step_num%200==0:

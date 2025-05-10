@@ -11,6 +11,7 @@ from env.map_base import Area
 from env.lanelet2_map_parser import LaneletMapParser 
 from env.trajectory_parser import TrajectoryParser 
 from shapely.affinity import rotate, translate 
+from shapely.ops import unary_union
 
 from utils import DebugVisualizer
 from utils import random_uniform_num, random_gaussian_num
@@ -46,6 +47,13 @@ class CampusMap(object):
                 scene = self.generate_normal_scene(case_id)
             elif scene_info['mode'] == 'parking':
                 scene = self.generate_parking_scene(case_id)
+            elif scene_info['mode'] == 'normal_parking':
+                cx, cy, yaw = self.trajectory_parser.get_ori_center_point(case_id)
+                parking_union = unary_union(self.map_parser.parking_lots)
+                if parking_union.contains(Point(cx, cy)):
+                    scene = self.generate_parking_scene(case_id) 
+                else:
+                    scene = self.generate_normal_scene(case_id)
         else: 
             scene = self.generate_simulator_scene(scene_info) 
 
