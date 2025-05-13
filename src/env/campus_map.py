@@ -102,7 +102,6 @@ class CampusMap(object):
         """
         boundary = geometry.boundary
         points = []
-        random_n_points = rand.randint(3, n_points)
         if isinstance(boundary, LineString):
             for i in np.linspace(0, boundary.length, n_points):
                 points.append(boundary.interpolate(i))
@@ -137,7 +136,7 @@ class CampusMap(object):
         start_x, start_y, start_yaw = (0, 0, pi/2)
         car_rb, car_rf, car_lf, car_lb = list(State([start_x, start_y, start_yaw, 0, 0]).create_box().coords)[:-1]
         start_box = LinearRing((car_rb, car_rf, car_lf, car_lb))
-        print('start done.', end=' ')
+        # print('start done.', end=' ')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(start_box, color='blue', edgecolor="blue")
@@ -177,13 +176,13 @@ class CampusMap(object):
                         obstacles.append(obs_box)
                         if DEBUG:
                             self.visualizer.draw_linear_ring(obs_box, color='dimgray', edgecolor="dimgray")
-        print('obstacle done.', end=' ')
+        # print('obstacle done.', end=' ')
 
         # 3. goal_point 
         dest_x, dest_y, dest_yaw = self._map_to_center(initial_point, goal_point) 
         car_rb, car_rf, car_lf, car_lb = list(State([dest_x, dest_y, dest_yaw, 0, 0]).create_box().coords)[:-1]
         dest_box = LinearRing((car_rb, car_rf, car_lf, car_lb))
-        print('dest done.')
+        # print('dest done.')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(dest_box, color='green', edgecolor='green')
@@ -222,7 +221,7 @@ class CampusMap(object):
             if zoomed_non_drivable_area.intersects(start_box):
                 continue
             break
-        print('start done.', end=' ')
+        # print('start done.', end=' ')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(start_box, color='blue', edgecolor="blue") 
@@ -250,7 +249,7 @@ class CampusMap(object):
                     obstacles.append(obs_box)
                     if DEBUG:
                         self.visualizer.draw_polygon(obs_box, color='dimgray', edgecolor='dimgray') 
-        print('obstacle done.', end=' ')
+        # print('obstacle done.', end=' ')
 
         # 3. goal_point
         dest_box_valid = False 
@@ -271,7 +270,7 @@ class CampusMap(object):
                     continue
                 dest_box_valid = True
                 break
-        print('dest done.')
+        # print('dest done.')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(dest_box, color='green', edgecolor='green') 
@@ -315,7 +314,7 @@ class CampusMap(object):
             if zoomed_non_drivable_area.intersects(start_box):
                 continue
             break
-        print('start done.', end=' ')
+        # print('start done.', end=' ')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(start_box, color='blue', edgecolor="blue") 
@@ -324,8 +323,10 @@ class CampusMap(object):
         # 2. obstacles
         obstacles = []
         parking_areas = self.map_parser.get_parking_area(ori_center_point)
+        traffic_density = 1 - np.random.uniform(0.6, 0.9)
         for parking_poly in parking_areas:
-            if not parking_poly.is_valid or parking_poly.is_empty or np.random.rand() < 0.5:
+            if not parking_poly.is_valid or parking_poly.is_empty or np.random.rand() > traffic_density:
+                # traffic density 이내에서만 차량 생성 
                 continue
 
             min_rect = parking_poly.minimum_rotated_rectangle
@@ -355,7 +356,29 @@ class CampusMap(object):
 
             if DEBUG:
                 self.visualizer.draw_polygon(obs_box, color='dimgray', edgecolor='dimgray') 
-        print('obstacle done.', end=' ')
+
+        boundary_points = self.sample_points_on_boundary(lanelet_area, n_points=15)
+
+        for pt in boundary_points:
+            obs_x = pt.x + random_uniform_num(-0.5, 0.5)
+            obs_y = pt.y + random_uniform_num(-0.5, 0.5)
+            yaw = np.random.rand() * pi * 2
+            obs_box = Polygon(State([obs_x, obs_y, yaw, 0, 0]).create_box('obs_vehicle'))
+
+            if obs_box.intersects(start_box):
+                continue
+            if any(obs_box.intersects(obs) for obs in obstacles):
+                continue
+
+            if lanelet_area and not lanelet_area.is_empty:
+                inter_area = obs_box.intersection(lanelet_area).area
+                overlab_area = inter_area / obs_box.area
+                if overlab_area < 0.3:
+                    obstacles.append(obs_box)
+                    if DEBUG:
+                        self.visualizer.draw_polygon(obs_box, color='dimgray', edgecolor='dimgray') 
+        
+        # print('obstacle done.', end=' ')
 
         # 3. goal_point 
         dest_box_valid = False 
@@ -376,7 +399,7 @@ class CampusMap(object):
                     continue
                 dest_box_valid = True
                 break
-        print('dest done.')
+        # print('dest done.')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(dest_box, color='green', edgecolor='green')  
@@ -418,9 +441,9 @@ if __name__ == "__main__":
     # campus_map = CampusMap(map_path, trajectory_path)
     # for i in range(445):
     #     campus_map.generate_normal_scene(i) 
-    map_path = '/media/k/part11/workspace/rl_planner/data/lanelet2_map/parking_lot_lanelet2_map_v1.osm'
-    trajectory_path = '/media/k/part11/workspace/rl_planner/data/trajectory/parking_lot_trajectory_odometry.json' 
+    map_path = '../data/lanelet2_map/campus_lanelet2_map_v1.osm'
+    trajectory_path = '../data/trajectory/campus_trajectory_data_v1.json' 
     campus_map = CampusMap(map_path, trajectory_path) 
-    # for i in range(156):
-    #     campus_map.generate_parking_scene(i)
-    campus_map.generate_parking_scene(40)
+    for i in range(100, 200):
+        campus_map.generate_parking_scene(i)
+    campus_map.generate_parking_scene(140)
