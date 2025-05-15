@@ -20,7 +20,7 @@ if __name__=="__main__":
     parser.add_argument('ckpt_path', type=str, default=None) 
     parser.add_argument('--map_path', type=str, default='../data/lanelet2_map/campus_lanelet2_map_v1.osm') 
     parser.add_argument('--trajectory_path', type=str, default='../data/trajectory/campus_trajectory_data_v1.json')
-    parser.add_argument('--eval_episode', type=int, default=20)
+    parser.add_argument('--eval_episode', type=int, default=300)
     parser.add_argument('--verbose', type=bool, default=True)
     parser.add_argument('--visualize', type=bool, default=True)
     args = parser.parse_args()

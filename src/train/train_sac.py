@@ -131,7 +131,7 @@ if __name__=='__main__':
     total_step_num = 0
     best_success_rate = 0 
 
-    scene_info = {'mode':'normal_parking'}
+    scene_info = {'mode':'normal_parking', 'flip_prob':0.5}
     for i in range(args.train_episode):
         case_id = scene_chooser.choose_case() 
         print(f'[Epoisod: {i}] case_id: {case_id}')

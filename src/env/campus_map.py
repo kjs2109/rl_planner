@@ -10,7 +10,7 @@ from env.vehicle import State
 from env.map_base import Area 
 from env.lanelet2_map_parser import LaneletMapParser 
 from env.trajectory_parser import TrajectoryParser 
-from shapely.affinity import rotate, translate 
+from shapely.affinity import rotate, translate, scale 
 from shapely.ops import unary_union
 
 from utils import DebugVisualizer
@@ -54,8 +54,11 @@ class CampusMap(object):
                     scene = self.generate_parking_scene(case_id) 
                 else:
                     scene = self.generate_normal_scene(case_id)
+            flip_prob = scene_info['flip_prob']
+            
         else: 
             scene = self.generate_simulator_scene(scene_info) 
+            flip_prob = 0.0
 
         start = scene['start'] 
         dest = scene['dest']
@@ -93,6 +96,9 @@ class CampusMap(object):
                     self.zoomed_drivable_area.append(Area(shape=poly, subtype="drivable", color=(100, 100, 100, 255)))
         
         self.n_obstacle = len(self.obstacles)
+
+        if np.random.rand() < flip_prob:
+            self.flip_scene_horizontal() 
 
         return self.start
     
@@ -417,22 +423,35 @@ class CampusMap(object):
         }
         return scene
 
+    def flip_scene_horizontal(self):
+        def flip_state(state: State):
+            x, y, heading = state.get_pose()
+            x = -x
+            heading = (np.pi - heading) % (2 * np.pi)
+            return State([x, y, heading])
+        
+        self.start = flip_state(self.start)
+        self.start_box = self.start.create_box() 
 
-    def _flip_box_orientation(self, target_state:State):
-        x, y, heading = target_state.get_pos()
-        center = np.mean(target_state.create_box().coords[:-1], axis=0)
-        new_x = 2*center[0] - x
-        new_y = 2*center[1] - y
-        heading = heading + np.pi
-        return State([new_x, new_y, heading])
-    
-    def flip_dest_orientation(self,):
-        self.dest = self._flip_box_orientation(self.dest)
+        self.dest = flip_state(self.dest)
         self.dest_box = self.dest.create_box()
 
-    def flip_start_orientation(self,):
-        self.start = self._flip_box_orientation(self.start)
-        self.start_box = self.start.create_box() 
+        self.obstacles = [
+            Area(shape=scale(a.shape, xfact=-1, yfact=1, origin=(0, 0)), subtype=a.subtype, color=a.color)
+            for a in self.obstacles
+        ]
+
+        self.zoomed_drivable_area = [
+            Area(shape=scale(a.shape, xfact=-1, yfact=1, origin=(0, 0)), subtype=a.subtype, color=a.color)
+            for a in self.zoomed_drivable_area
+        ]
+
+        self.zoomed_non_drivable_area = [
+            Area(shape=scale(a.shape, xfact=-1, yfact=1, origin=(0, 0)), subtype=a.subtype, color=a.color)
+            for a in self.zoomed_non_drivable_area
+        ]
+
+        self.xmin, self.xmax = -self.xmax, -self.xmin
 
 
 if __name__ == "__main__":
