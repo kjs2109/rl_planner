@@ -90,7 +90,8 @@ REWARD_WEIGHT = OrderedDict({'time_cost':1,
                             'rs_dist_reward':0,
                             'dist_reward':5,
                             'angle_reward':0,
-                            'box_union_reward':10,})
+                            'box_union_reward':10,
+                            'collision_penalty':1})
 
 
 ################# model ################# 

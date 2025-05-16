@@ -208,10 +208,16 @@ class CampusEnvBase(gym.Env):
             prev_arrive_reward = self.accum_arrive_reward 
             self.accum_arrive_reward = box_union_reward  
             box_union_reward -= prev_arrive_reward  # 증가량 만큼 보상  
-        return [time_cost, rs_dist_reward, dist_reward, angle_reward, box_union_reward] 
+
+        # collision penalty 
+        collision_penalty = 0.0
+        if self.collision: 
+            collision_penalty = -1.0 
+
+        return [time_cost, rs_dist_reward, dist_reward, angle_reward, box_union_reward, collision_penalty] 
 
     def get_reward(self, status, prev_status):
-        reward_info = [0, 0, 0, 0, 0] 
+        reward_info = [0, 0, 0, 0, 0, 0] 
         if status == Status.CONTINUE: 
             reward_info = self._get_reward(prev_status, self.vehicle.state) 
         return reward_info 
@@ -233,7 +239,8 @@ class CampusEnvBase(gym.Env):
         '''
         assert self.vehicle is not None, "The vehicle is not initialized." 
         prev_state = self.vehicle.state  # State  
-        collide = False 
+        collide = False  # True: 충돌 시 에피소드 종료. False: 충돌 시 self.check_collision 체크   
+        self.collision = False  # 충돌 여부 (step 단위의 reward에 반영)
         arrive = False 
         if action is not None:
             # 0.5s 
@@ -248,7 +255,8 @@ class CampusEnvBase(gym.Env):
                     break 
                 if self._detect_collision():  
                     if simu_step_num == 0:
-                        collide = True 
+                        collide = False  
+                        self.collision = True
                         self.vehicle.retreat(prev_info) 
                     else: 
                         self.vehicle.retreat(prev_info)     
@@ -274,7 +282,8 @@ class CampusEnvBase(gym.Env):
                 'rs_dist_reward': reward_list[1],
                 'dist_reward': reward_list[2],
                 'angle_reward': reward_list[3],
-                'box_union_reward': reward_list[4]
+                'box_union_reward': reward_list[4], 
+                'collision_penalty': reward_list[5]
             })
         info = OrderedDict({'reward_info': reward_info, 'status': status})
 
