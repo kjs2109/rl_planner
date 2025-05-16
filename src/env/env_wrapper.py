@@ -21,7 +21,7 @@ def reward_shaping(*args):
     elif status == Status.ARRIVED: 
         reward = 50 
     elif status == Status.COLLIDED: 
-        reward = -10 
+        reward = -35 
     else:
         print(status) 
         print('Never reach here !!!') 

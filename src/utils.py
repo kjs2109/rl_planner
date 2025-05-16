@@ -1,5 +1,6 @@
 import os 
 import math 
+import json 
 import numpy as np 
 import matplotlib.pyplot as plt 
 
@@ -28,6 +29,37 @@ def check_and_mkdir(target_path):
         path_history = os.path.join(path_history, path)
         if not os.path.exists(path_history):
             os.mkdir(path_history) 
+
+def case_log_visualization(log_path):
+    with open(log_path, 'r') as f:
+        log_data = json.load(f)
+
+    scene_ids = sorted(log_data.keys(), key=lambda x: int(x))
+    attempt_vals = []
+    success_vals = []
+
+    for scene_id in scene_ids:
+        logs = log_data[scene_id]
+        attempts = len(logs)
+        successes = sum(logs)
+        attempt_vals.append(attempts)
+        success_vals.append(successes)
+
+    x = np.arange(len(scene_ids))
+    width = 0.6
+
+    fig, ax = plt.subplots()
+    ax.bar(x, attempt_vals, width, label='Attempts', color='blue')
+    ax.bar(x, success_vals, width, label='Successes', color='orange')
+    xtick_step = 50
+    ax.set_xticks(x[::xtick_step])
+    ax.set_xticklabels(scene_ids[::xtick_step])
+    ax.set_xlabel('Scene ID')
+    ax.set_ylabel('Count')
+    ax.set_title('Attempts and Successes per Scene')
+    ax.legend()
+    plt.tight_layout()
+    plt.show()
 
 
 class DebugVisualizer:

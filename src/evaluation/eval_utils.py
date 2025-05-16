@@ -24,7 +24,7 @@ def eval_agent(env, agent, episode=2000, log_path='', multi_mode=False, mode='no
     succ_rate_case = DefaultDict(list)
     reward_case = DefaultDict(list) 
 
-    scene_info = {'mode': mode}
+    scene_info = {'mode': mode, 'flip_prob': 0.0}
     for case_id in trange(episode): 
         obs = env.reset(case_id, scene_info) 
         done = False 

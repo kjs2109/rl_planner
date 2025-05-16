@@ -444,14 +444,10 @@ if __name__ == "__main__":
         step_count = 0
 
         while True:
-            # 랜덤한 액션 생성: [steer, speed]
             # action = env.action_space.sample()
             action = sample_straight_forward_action()
-
-            # 환경에 한 스텝 적용
             obs, reward_info, status, info = env.step(action)
 
-            # 출력
             # obs, reward_info, status, info = env.step()
             print("LIDAR:", obs['lidar'].shape)       # if use_lidar_observation is True
             print("Image:", obs['img'].shape)   # if use_img_observation is True
@@ -460,7 +456,6 @@ if __name__ == "__main__":
             print(f"Step: {step_count:3d}, Status: {status.name}, Reward: {reward_info}")
             print('--'*50)
 
-            # 종료 조건
             if status != Status.CONTINUE:
                 print(f"Episode finished with status: {status.name}")
                 break
