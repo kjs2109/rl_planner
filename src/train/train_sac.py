@@ -214,7 +214,7 @@ if __name__=='__main__':
             print('log_std: ', agent.log_std.detach().cpu().numpy().reshape(-1), 'alpha: ', agent.alpha.detach().cpu().numpy().reshape(-1))
             print("episode:%s  average reward:%s"%(i,np.mean(reward_list[-50:])))
             print('actor loss: ', np.mean(agent.actor_loss_list[-100:]), 'critic loss: ', np.mean(agent.critic_loss_list[-100:]))
-            print('time_cost ,rs_dist_reward ,dist_reward ,angle_reward ,box_union_reward')
+            print('time_cost ,rs_dist_reward ,dist_reward ,angle_reward ,box_union_reward, collision_penalty')
             for j in range(10):
                 print(case_id_list[-(10-j)],reward_list[-(10-j)],reward_info_list[-(10-j)])
             print("")
