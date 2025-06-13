@@ -3,8 +3,8 @@ import numpy as np
 from shapely.geometry import LineString, Point
 from shapely.affinity import affine_transform
 
-from env.vehicle import State,VehicleBox
-from configs import ORIGIN
+from environment.vehicle import State
+from configs import ORIGIN, VehicleBox
 
 class LidarSimlator():
     def __init__(self, lidar_range=10.0, lidar_num:int = 120):
