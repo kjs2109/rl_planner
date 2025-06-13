@@ -65,7 +65,7 @@ if __name__=='__main__':
     parser.add_argument('--img_ckpt', type=str, default=None)  # './model/ckpt/autoencoder.pt' 
     parser.add_argument('--map_path', type=str, default='../data/lanelet2_map/campus_lanelet2_map_v1.osm') 
     parser.add_argument('--trajectory_path', type=str, default='../data/trajectory/campus_trajectory_data_v1.json')
-    parser.add_argument('--train_episode', type=int, default=100000)
+    parser.add_argument('--train_episode', type=int, default=200000)
     parser.add_argument('--eval_episode', type=int, default=2000)
     parser.add_argument('--verbose', type=bool, default=True)
     parser.add_argument('--visualize', type=bool, default=True)
@@ -131,6 +131,7 @@ if __name__=='__main__':
     succ_record = []            # 성공 여부 기록 
     total_step_num = 0
     best_success_rate = 0 
+    
 
     start_time = time.time() 
     scene_info = {'mode':'normal_parking', 'flip_prob':0.5}
@@ -140,11 +141,14 @@ if __name__=='__main__':
         print('-'*50)
 
         obs = env.reset(case_id, scene_info)
+        print()
         case_id_list.append(case_id) 
         done = False 
         total_reward = 0 
         step_num = 0 
         reward_info = [] 
+
+        last_target_obs = obs['target']
 
         while not done:
             step_num += 1 
@@ -155,8 +159,12 @@ if __name__=='__main__':
                 action = env.action_space.sample() 
                 log_prob = agent.get_log_prob(obs, action)  # 현재 상태에 대한 행동의 확률 
             else:
-                # get action from the agent
-                action, log_prob = agent.get_action(obs) 
+                if (last_target_obs == obs['target']).all() and step_num != 1:
+                    action = env.action_space.sample()
+                    log_prob = agent.get_log_prob(obs, action)
+                else:
+                    # get action from the agent
+                    action, log_prob = agent.get_action(obs) 
             
             # 한 step 시뮬레이션 
             next_obs, reward, done, info = env.step(action) 
@@ -164,6 +172,7 @@ if __name__=='__main__':
             agent.push_memory((obs, action, reward, done, log_prob, next_obs))  # 경험 저장 
             reward_per_state_list.append(reward) 
             total_reward += reward 
+            last_target_obs = obs['target'] 
             obs = next_obs 
 
             if total_step_num > agent.configs.memory_size and total_step_num%10==0: 
@@ -238,7 +247,7 @@ if __name__=='__main__':
             f.savefig(f'{save_path}/reward.png')
             f.clear()
 
-        if (i+1) % 2000 == 0:
+        if (i+1) % 10000 == 0:
             agent.save(f"{save_path}/SAC_{i}.pt",params_only=True)
 
     print('done.') 
