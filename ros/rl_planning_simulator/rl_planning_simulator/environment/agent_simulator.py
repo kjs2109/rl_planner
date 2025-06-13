@@ -4,18 +4,21 @@ import numpy as np
 from shapely.geometry import Polygon, Point 
 from shapely.affinity import affine_transform, translate, rotate 
 
+from environment.utils import random_gaussian_num
 from environment.vehicle import State, Status, Vehicle
 from environment.map_parser import LaneletMapParser
 from environment.lidar_simulator import LidarSimlator
 from environment.observation_processor import Obs_Processor
 from model.agent.sac_agent import SACAgent as SAC
-from configs import (LIDAR_RANGE, LIDAR_NUM, WIN_W, WIN_H, OBS_W, OBS_H, NUM_STEP,
-                     ACTOR_CONFIGS, CRITIC_CONFIGS, K)
+from environment.configs import (LIDAR_RANGE, LIDAR_NUM, WIN_W, WIN_H, OBS_W, OBS_H, NUM_STEP,
+                     ACTOR_CONFIGS, CRITIC_CONFIGS, K, TOLERANT_TIME)
 
 
 class AgentSimulator():
-    def __init__(self, map_path, agent_path): 
+    def __init__(self, map_path, agent_path, mode='short_term', tolerant_time=TOLERANT_TIME): 
 
+        self.mode = mode 
+        self.tolerant_time = tolerant_time
         self.map_parser = LaneletMapParser(map_path)
         self.rl_agent = self._load_agent(agent_path) 
         self.img_processor = Obs_Processor() 
@@ -67,7 +70,9 @@ class AgentSimulator():
         self.t = 0 
         self.initial_pose = curr_pose
         self.vehicle = Vehicle() 
-        self.vehicle.reset(State([0, 0, math.pi/2]))
+        pi = math.pi
+        yaw = random_gaussian_num(pi/2, pi/36, pi*5/12, pi*7/12) if self.mode == 'short_term' else pi/2 
+        self.vehicle.reset(State([0, 0, yaw]))
         self.screen = screen
         self.non_drivable_area = processed_area  # Area
         self.processed_obs = processed_obs       # Area 
@@ -144,12 +149,12 @@ class AgentSimulator():
         vehicle_box = Polygon(self.vehicle.box) 
         dest_box = Polygon(State(self.goal_center).create_box()) 
         union_area = vehicle_box.intersection(dest_box).area
-        if union_area / dest_box.area > 0.8:
+        if union_area / dest_box.area > 0.5:
             return True
         return False
     
     def _check_time_exceeded(self): 
-        return self.t > 200 # TOLERANT_TIME  
+        return self.t > self.tolerant_time # TOLERANT_TIME   
     
     def _check_status(self):
         if self._detect_collision(): 
@@ -196,13 +201,15 @@ class AgentSimulator():
                 status = Status.ARRIVED 
                 for traj_state in self.vehicle.trajectory: 
                     x, y = traj_state.loc.x, traj_state.loc.y 
+                    v = traj_state.speed
                     heading = traj_state.heading 
-                    rl_trajectory.append(self._ego_coord_transform_map(self.initial_pose, (x, y, heading)))
+                    x, y, heading = self._ego_coord_transform_map(self.initial_pose, (x, y, heading))
+                    rl_trajectory.append((x, y, v, heading))
                 done = True 
             else:
                 status = Status.COLLIDED if collide else self._check_status()  
 
-            if status == Status.OUTTIME: 
+            if status == Status.OUTTIME or self.t > self.tolerant_time: 
                 done = True 
 
-        return rl_trajectory
+        return rl_trajectory, status 

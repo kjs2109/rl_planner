@@ -6,21 +6,24 @@ import pygame
 import threading
 import numpy as np
 from rclpy.node import Node 
-from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup 
-from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped 
 from tf_transformations import euler_from_quaternion 
-from autoware_planning_msgs.msg import Trajectory
+from autoware_planning_msgs.msg import Trajectory, TrajectoryPoint
 from autoware_perception_msgs.msg import PredictedObjects
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Quaternion
+from std_srvs.srv import SetBool 
+from tf_transformations import quaternion_from_euler
+
 from collections import deque
 from shapely.affinity import affine_transform, translate, rotate  
 from shapely.geometry import Polygon, Point, LinearRing 
 
+from environment.utils import random_gaussian_num, random_uniform_num
 from environment.map_base import Area
 from environment.agent_simulator import AgentSimulator 
-from environment.vehicle import State, Vehicle
-from configs import (
+from environment.vehicle import State, Status
+from environment.configs import (
     WIN_W, WIN_H, K, 
     NON_DRIVABLE_COLOR, BG_COLOR, OBSTACLE_COLOR, START_COLOR, DEST_COLOR,)
 
@@ -35,31 +38,61 @@ class RealTimeSimulator(Node):
         self.matrix = self.coord_transform_matrix() 
 
         self.create_timer(0.1, self.timer_callback) 
+        self.create_timer(0.1, self._publish_trajectory)
+
+        # subscribers 
         self.create_subscription(PoseStamped, '/planning/mission_planning/goal', self.goal_callback, 1) 
         self.create_subscription(PoseWithCovarianceStamped, '/initialpose', self.initialpose_callback, 1) 
-        self.create_subscription(Trajectory, '/planning/scenario_planning/trajectory', self.trajectory_callback, 10)
+        self.create_subscription(Trajectory, '/planning/scenario_planning/lane_driving/trajectory', self.trajectory_callback, 10)
         self.create_subscription(Odometry, '/localization/kinematic_state', self.odometry_callback, 10)
         self.create_subscription(PredictedObjects, '/perception/object_recognition/objects', self.predicted_objects_callback, 10)
+        
+        # publishers
+        self.trajectory_pub_ = self.create_publisher(Trajectory, '/planning/scenario_planning/rl_planning/trajectory', 1)
+        
+        # services
+        self.create_service(SetBool, '/rl_planner/set_rl_mode', self.set_rl_mode_callback)
 
         self.trajectory_buffer = deque(maxlen=20)
         self.odometry_buffer = deque(maxlen=20)
         self.predicted_objects_buffer = deque(maxlen=20)
+
+        self.trajectory_lock = threading.Lock() 
+        self.rl_stop_event = threading.Event()
+        self.outtime_cnt = 0 
 
         pygame.init()
         self.screen = pygame.display.set_mode((600, 800))
         pygame.display.set_caption("Trajectory Visualization")
         self.clock = pygame.time.Clock()
 
-        self.simulator = AgentSimulator(
-            map_path='/media/k/part11/workspace/rl_planner/data/lanelet2_map/campus_lanelet2_map_v1.osm',
-            agent_path='/media/k/part11/workspace/rl_planner/src/log/ckpt/exp4_SAC_best.pt'
+        root_path = '/home/k/my_work/rl_planner'
+        self.simulator_1 = AgentSimulator(
+            map_path=os.path.join(root_path, 'data/campus_lanelet2_map_v1.osm'),
+            agent_path=os.path.join(root_path, 'data/exp7_SAC_99999.pt'), 
+            mode='short_term',
+            tolerant_time=80
+        )
+        self.simulator_2 = AgentSimulator(
+            map_path=os.path.join(root_path, 'data/campus_lanelet2_map_v1.osm'),
+            agent_path=os.path.join(root_path, 'data/exp10_SAC_99999.pt'), 
+            mode='long_term', 
+            tolerant_time=200
         )
         
-        self.rl_mode = False
         self.rl_trajectory = [] 
-        self.simulate_thread = threading.Thread(target=self.simulate_loop, daemon=True)
-        self.trajectory_lock = threading.Lock() 
-        self.simulate_thread.start()
+        self.rl_mode = False
+        self.vis_traj = False 
+        self.stop_cnt = 0
+
+    def yaw_to_quaternion(self, yaw):
+        q = quaternion_from_euler(0, 0, yaw)
+        quat = Quaternion()
+        quat.x = q[0]
+        quat.y = q[1]
+        quat.z = q[2]
+        quat.w = q[3]
+        return quat
 
     def coord_transform_matrix(self) -> list:
         k = K
@@ -101,17 +134,29 @@ class RealTimeSimulator(Node):
             traj_pos = traj_point.pose.position 
             traj_yaw = self._get_quaternion_yaw(traj_point.pose.orientation)
             traj_data.append((traj_pos.x, traj_pos.y, traj_yaw))
-        self.dest_center = (traj_data[-1][0], traj_data[-1][1], traj_data[-1][2])
+        # long term 
+        long_term = traj_data[-1]
+        # short term 
+        _short_term_idx = int(len(traj_data)*(0.4 - self.outtime_cnt*0.05))
+        short_term_idx = max(_short_term_idx, 25) if len(traj_data) > 25 else _short_term_idx
+        short_term = traj_data[short_term_idx]  
+        rel_distance = math.sqrt((short_term[0] - long_term[0])**2 + (short_term[1] - long_term[1])**2)
+        if rel_distance < 10.0: 
+            short_term = long_term 
+        self.short_term_dest_center = (short_term[0], short_term[1], short_term[2])
+        self.long_term_dest_center = (long_term[0], long_term[1], long_term[2])
         self.trajectory_buffer.append((now, traj_data))
 
     def predicted_objects_callback(self, msg:PredictedObjects):
         now = self.get_clock().now().nanoseconds
         obs_data = [] 
         for obj in msg.objects: 
+            class_num = obj.classification[0].label
             obj_x = obj.kinematics.initial_pose_with_covariance.pose.position.x 
             obj_y = obj.kinematics.initial_pose_with_covariance.pose.position.y
             obj_yaw = self._get_quaternion_yaw(obj.kinematics.initial_pose_with_covariance.pose.orientation)
-            obs_data.append((obj_x, obj_y, obj_yaw))
+            obj = {'class': class_num, 'pose': (obj_x, obj_y, obj_yaw)}
+            obs_data.append(obj)
         self.predicted_objects_buffer.append((now, obs_data))
         
     def sync_data(self):
@@ -177,16 +222,55 @@ class RealTimeSimulator(Node):
                 return
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_g:
-                    self.rl_mode = True  if self.rl_mode == False else False
-                if self.rl_mode: 
-                    print("RL mode activated") 
-                else: 
-                    print("RL mode deactivated")
+                    self.rl_mode = not self.rl_mode
+
+                    if self.rl_mode:
+                        self.rl_stop_event.clear()
+                        # self.simulate_thread_1 = threading.Thread(target=self.simulate_loop_short, daemon=True)
+                        self.simulate_thread_2 = threading.Thread(target=self.simulate_loop_long, daemon=True)
+                        # self.simulate_thread_1.start()
+                        self.simulate_thread_2.start()
+                        print("RL mode activated")
+                    else:
+                        self.rl_stop_event.set()
+                        self.stop_cnt = 0
+                        for name in ['simulate_thread_1', 'simulate_thread_2']:
+                            thread = getattr(self, name, None)
+                            if thread and thread.is_alive():
+                                thread.join(timeout=2.0)
+                                setattr(self, name, None)
+                        print("RL mode deactivated")
+
+                elif event.key == pygame.K_v:
+                    self.vis_traj = not self.vis_traj
+
+    def set_rl_mode_callback(self, request: SetBool, response: SetBool):
+        if request.data:
+            if not self.rl_mode:
+                self.rl_mode = True
+                self.rl_stop_event.clear()
+                # self.simulate_thread_1 = threading.Thread(target=self.simulate_loop_short, daemon=True)
+                self.simulate_thread_2 = threading.Thread(target=self.simulate_loop_long, daemon=True)
+                # self.simulate_thread_1.start()
+                self.simulate_thread_2.start()
+                response.success = True
+                response.message = "RL mode activated"
+        else:
+            if self.rl_mode:
+                self.rl_mode = False
+                self.rl_stop_event.set()
+                for name in ['simulate_thread_1', 'simulate_thread_2']:
+                    thread = getattr(self, name, None)
+                    if thread and thread.is_alive():
+                        thread.join(timeout=2.0)
+                        setattr(self, name, None)
+                response.success = True
+                response.message = "RL mode deactivated"
+        return response
     
     def timer_callback(self): 
-        odom_data, traj_data, obs_data = self.sync_data()  # 맵 좌표 기준 데이터
-
         self._listen_events() 
+        odom_data, traj_data, obs_data = self.sync_data()  # 맵 좌표 기준 데이터
 
         if self.start_center and self.goal_center:
             if odom_data: 
@@ -200,11 +284,15 @@ class RealTimeSimulator(Node):
 
                 self.processed_obs = [] 
                 if obs_data is not None: 
-                    for obs_point in obs_data: 
+                    for obs in obs_data: 
+                        class_num, obs_point = obs['class'], obs['pose']
                         pose = self._map_coord_transform_base(self.curr_pose, obs_point)
-                        self.processed_obs.append(Area(shape=State(pose).create_box(mode='obs_vehicle'), subtype="obstacle"))
+                        if int(class_num) == 1: 
+                            self.processed_obs.append(Area(shape=State(pose).create_box(mode='obs_vehicle'), subtype="obstacle"))
+                        elif int(class_num) == 7: 
+                            self.processed_obs.append(Area(shape=State(pose).create_box(mode='pedestrian'), subtype="obstacle"))
 
-                drivable_area, non_drivable_area, lanelet_area = self.simulator.get_scene(self.curr_pose, zoom_width=60, zoom_height=80)
+                drivable_area, non_drivable_area, lanelet_area = self.simulator_2.get_scene(self.curr_pose, zoom_width=60, zoom_height=80)
                 self.processed_areas = []
                 if non_drivable_area is not None:
                     if isinstance(non_drivable_area, Polygon):
@@ -238,24 +326,97 @@ class RealTimeSimulator(Node):
         
         pygame.draw.polygon(surface, (30, 144, 255), self._coord_transform_poly(State((0, 0, math.pi/2)).create_box()))
         
-        for traj_point in self.rl_trajectory[10::3]: 
-            x, y, yaw = self._map_coord_transform_base(self.curr_pose, traj_point)
+        for traj_point in self.rl_trajectory[10::3]:  
+            x, y, v, yaw = traj_point
+            x, y, yaw = self._map_coord_transform_base(self.curr_pose, (x, y, yaw))
             pygame.draw.circle(surface, (0, 255, 0), self._coord_transform_point(x, y), 3)
+            if self.vis_traj:
+                pygame.draw.polygon(surface, (30, 144, 255), self._coord_transform_poly(State((x, y, yaw)).create_box()), width=1)
+
+    def _publish_trajectory(self):
+        traj_msg = Trajectory()
+        traj_msg.header.stamp = self.get_clock().now().to_msg()
+        traj_msg.header.frame_id = 'map'
+
+        if self.rl_mode:
+            rl_trajectory = self.rl_trajectory 
+        else:
+            rl_trajectory = [] 
+
+        for pt in rl_trajectory:
+            x, y, v, yaw = pt
+
+            traj_pt = TrajectoryPoint()
+            traj_pt.pose.position.x = x
+            traj_pt.pose.position.y = y
+            traj_pt.pose.position.z = 0.0
+
+            quat = self.yaw_to_quaternion(yaw)
+            traj_pt.pose.orientation = quat
+
+            traj_pt.longitudinal_velocity_mps = v
+            traj_msg.points.append(traj_pt)
+
+        self.trajectory_pub_.publish(traj_msg)
     
-    def simulate_loop(self):                    
-        while rclpy.ok():
-            if self.rl_mode:
-                # goal_center = self._map_coord_transform_base(self.curr_pose, self.goal_center)
-                dest_center = self._map_coord_transform_base(self.curr_pose, self.dest_center)
-                self.simulator.reset(self.screen, self.processed_areas, self.processed_obs, self.curr_pose, dest_center)
-                rl_trajectory = self.simulator.run()  
-                with self.trajectory_lock: 
+    def simulate_loop_short(self):                 
+        while rclpy.ok() and not self.rl_stop_event.is_set(): 
+            tick = time.time() 
+
+            try: 
+                dest_center = self._map_coord_transform_base(self.curr_pose, self.short_term_dest_center)
+            except:
+                dest_center = self._map_coord_transform_base(self.curr_pose, self.goal_center)  
+
+            if self.outtime_cnt != 0:  
+                cnt = 0 
+                while True:
+                    dest_x, dest_y, dest_yaw = dest_center 
+                    dest_x = random_uniform_num(dest_x-2, dest_x+2) 
+                    dest_y = random_uniform_num(dest_y-2, dest_y+2)
+                    car_rb, car_rf, car_lf, car_lb = list(State([dest_x, dest_y, dest_yaw, 0, 0]).create_box().coords)[:-1]
+                    dest_box = LinearRing((car_rb, car_rf, car_lf, car_lb))
+                    cnt += 1 
+                    if any(dest_box.intersects(obs.shape) for obs in self.processed_obs):
+                        continue
+                    if any(dest_box.intersects(area.shape) for area in self.processed_areas):
+                        continue
+                    dest_center = (dest_x, dest_y, dest_yaw)
+                    print(f'searching count: ', cnt, dest_center, self.outtime_cnt)
+                    break 
+
+            self.simulator_1.reset(self.screen, self.processed_areas, self.processed_obs, self.curr_pose, dest_center)
+            rl_trajectory, status = self.simulator_1.run()  
+
+            with self.trajectory_lock: 
+                if len(self.rl_trajectory) <= len(rl_trajectory):
                     self.rl_trajectory = rl_trajectory
-            else: 
-                with self.trajectory_lock:
-                    self.rl_trajectory = []
-            time.sleep(0.5)
+            
+            if status == Status.OUTTIME or status == Status.COLLIDED:
+                self.outtime_cnt += 1 
+            elif status == Status.ARRIVED: 
+                self.outtime_cnt = 0
+
+            tock = time.time() - tick 
+            print(f"[short] publish trajectory: {tock:.6f} sec | puslish rate: {1/tock:.2f} Hz | trajectory length: {len(self.rl_trajectory)}")
         
+    def simulate_loop_long(self):             
+        while rclpy.ok() and not self.rl_stop_event.is_set():
+            tick = time.time() 
+
+            try: 
+                dest_center = self._map_coord_transform_base(self.curr_pose, self.long_term_dest_center)
+            except:
+                dest_center = self._map_coord_transform_base(self.curr_pose, self.goal_center)  
+
+            self.simulator_2.reset(self.screen, self.processed_areas, self.processed_obs, self.curr_pose, dest_center)
+            rl_trajectory, status = self.simulator_2.run()  
+
+            with self.trajectory_lock: 
+                self.rl_trajectory = rl_trajectory
+
+            tock = time.time() - tick
+            print(f"[long] publish trajectory: {tock:.6f} sec | puslish rate: {1/tock:.2f} Hz | trajectory length: {len(self.rl_trajectory)}")
 
 def main(args=None):
     rclpy.init(args=args)

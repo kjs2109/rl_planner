@@ -4,7 +4,7 @@ from shapely.geometry import LineString, Point
 from shapely.affinity import affine_transform
 
 from environment.vehicle import State
-from configs import ORIGIN, VehicleBox
+from environment.configs import ORIGIN, VehicleBox
 
 class LidarSimlator():
     def __init__(self, lidar_range=10.0, lidar_num:int = 120):

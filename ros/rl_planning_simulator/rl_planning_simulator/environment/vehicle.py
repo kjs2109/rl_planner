@@ -38,6 +38,11 @@ class State:
             box = affine_transform(VehicleBox, mat) 
         elif mode == 'obs_vehicle':
             box = affine_transform(ObsVehicleBox, mat)
+        elif mode == 'pedestrian': 
+            circle = Point(self.loc.x, self.loc.y).buffer(1.0)
+            box = LinearRing(circle.exterior.coords)
+        else: 
+            raise ValueError("Invalid mode. Choose 'ego_vehicle', 'obs_vehicle', or 'pedestrian'.")
         return  box
     
     def get_pose(self):
