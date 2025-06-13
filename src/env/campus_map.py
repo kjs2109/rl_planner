@@ -1,13 +1,13 @@
 import os 
 import math 
+import random 
 from math import pi
 import numpy as np 
-import random as rand 
 
 from typing import List
 from shapely.geometry import Polygon, LinearRing, Point, LineString, MultiLineString 
-from env.vehicle import State 
-from env.map_base import Area 
+from env.pedestrian import Pedestrian
+from env.object_base import Area, State  
 from env.lanelet2_map_parser import LaneletMapParser 
 from env.trajectory_parser import TrajectoryParser 
 from shapely.affinity import rotate, translate, scale 
@@ -63,6 +63,7 @@ class CampusMap(object):
         start = scene['start'] 
         dest = scene['dest']
         obstacles = scene['obstacles']
+        pedestrians = scene['pedestrians'] if 'pedestrians' in scene.keys() else []
         zoomed_non_drivable_area = scene['zoomed_non_drivable_area']
         zoomed_drivable_area = scene['zoomed_drivable_area']
 
@@ -78,6 +79,9 @@ class CampusMap(object):
 
         # obstacles 
         self.obstacles = list([Area(shape=obs, subtype="obstacle", color=(150, 150, 150, 255)) for obs in obstacles])
+
+        # pedestrians
+        self.pedestrians = pedestrians 
         
         # non-drivable area 
         if zoomed_non_drivable_area is not None:
@@ -227,7 +231,7 @@ class CampusMap(object):
             if zoomed_non_drivable_area.intersects(start_box):
                 continue
             break
-        # print('start done.', end=' ')
+        print('start done.', end=' ')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(start_box, color='blue', edgecolor="blue") 
@@ -239,7 +243,7 @@ class CampusMap(object):
 
         for pt in boundary_points:
             obs_x = pt.x + random_uniform_num(-0.5, 0.5)
-            obs_y = pt.y + random_uniform_num(-0.5, 0.5)
+            obs_y = pt.y + random_uniform_num(-2.0, 2.0)
             yaw = np.random.rand() * pi * 2
             obs_box = Polygon(State([obs_x, obs_y, yaw, 0, 0]).create_box('obs_vehicle'))
 
@@ -255,7 +259,7 @@ class CampusMap(object):
                     obstacles.append(obs_box)
                     if DEBUG:
                         self.visualizer.draw_polygon(obs_box, color='dimgray', edgecolor='dimgray') 
-        # print('obstacle done.', end=' ')
+        print('obstacle done.', end=' ')
 
         # 3. goal_point
         dest_box_valid = False 
@@ -263,7 +267,7 @@ class CampusMap(object):
             for traj_p in trajectory[::-1]:
                 _dest_x, _dest_y, _dest_yaw = traj_p 
                 dest_x = _dest_x  
-                dest_y = random_uniform_num(_dest_y-0.5, _dest_y+0.5)
+                dest_y = random_uniform_num(_dest_y-1.5, _dest_y+1.5)
                 dest_yaw = random_gaussian_num(_dest_yaw, pi/36, -2*pi, 2*pi)  # pi/6
                 car_rb, car_rf, car_lf, car_lb = list(State([dest_x, dest_y, dest_yaw, 0, 0]).create_box().coords)[:-1]
                 dest_box = LinearRing((car_rb, car_rf, car_lf, car_lb))
@@ -285,10 +289,14 @@ class CampusMap(object):
                 self.visualizer.save()
             self.visualizer.clear()
 
+        # 4 pedestrians
+        pedestrians = self.generate_pedestrians((start_x+dest_x)/2, (start_y+dest_y)/2, obstacles)
+
         scene = {
             'start': [start_x, start_y, start_yaw],
             'dest': [dest_x, dest_y, dest_yaw],
             'obstacles': obstacles,
+            'pedestrians': pedestrians,
             'zoomed_non_drivable_area': zoomed_non_drivable_area,
             'zoomed_drivable_area': zoomed_drivable_area
         }
@@ -320,7 +328,7 @@ class CampusMap(object):
             if zoomed_non_drivable_area.intersects(start_box):
                 continue
             break
-        # print('start done.', end=' ')
+        print('start done.', end=' ')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(start_box, color='blue', edgecolor="blue") 
@@ -393,7 +401,7 @@ class CampusMap(object):
                 _dest_x, _dest_y, _dest_yaw = traj_p 
                 dest_yaw = random_gaussian_num(_dest_yaw, pi/36, -2*pi, 2*pi)
                 dest_x = _dest_x
-                dest_y = random_uniform_num(_dest_y-0.5, _dest_y+0.5)
+                dest_y = random_uniform_num(_dest_y-1.5, _dest_y+1.5)
                 car_rb, car_rf, car_lf, car_lb = list(State([dest_x, dest_y, dest_yaw, 0, 0]).create_box().coords)[:-1]
                 dest_box = LinearRing((car_rb, car_rf, car_lf, car_lb))
 
@@ -405,7 +413,7 @@ class CampusMap(object):
                     continue
                 dest_box_valid = True
                 break
-        # print('dest done.')
+        print('dest done.')
 
         if DEBUG:
             self.visualizer.draw_linear_ring(dest_box, color='green', edgecolor='green')  
@@ -414,14 +422,45 @@ class CampusMap(object):
                 self.visualizer.save()
             self.visualizer.clear()
 
+        # 4 pedestrians
+        pedestrians = self.generate_pedestrians((start_x+dest_x)/2, (start_y+dest_y)/2, obstacles)
+
         scene = {
             'start': [start_x, start_y, start_yaw],
             'dest': [dest_x, dest_y, dest_yaw],
             'obstacles': obstacles,
+            'pedestrians': pedestrians,
             'zoomed_non_drivable_area': zoomed_non_drivable_area,
             'zoomed_drivable_area': zoomed_drivable_area
         }
         return scene
+    
+    def generate_pedestrians(self, x, y, obstacles): 
+        pedestrians = []
+        num_peds = random.randint(1, 4) 
+        for _ in range(num_peds):
+            for _ in range(10):  
+                ped_x = x + random_uniform_num(-10.0, 10.0)
+                ped_y = y + random_uniform_num(-10.0, 10.0)
+                yaw = np.random.rand() * 2 * pi  
+                speed = random_uniform_num(0.0, 1.0)
+                uncertainty = random_uniform_num(0.0, 1.0)
+                pedestrian = Pedestrian(uncertainty).reset(State([ped_x, ped_y, yaw, speed, 0.0]))  
+                ped_circle = pedestrian.create_box()
+
+                # if ped_circle.intersects(start_box):
+                #     continue
+                if any(ped_circle.intersects(obs) for obs in obstacles):
+                    continue
+                # if zoomed_non_drivable_area.intersects(ped_circle):
+                #     continue
+
+                pedestrians.append(pedestrian)
+                # if DEBUG:
+                #     self.visualizer.draw_polygon(ped_circle, color='green', edgecolor='darkgreen', alpha=0.7)
+                break  
+        
+        return pedestrians 
 
     def flip_scene_horizontal(self):
         def flip_state(state: State):

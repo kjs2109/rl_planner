@@ -4,10 +4,9 @@ import numpy as np
 from enum import Enum 
 from typing import Callable, List 
 from shapely.geometry import Point, LinearRing 
-from shapely.affinity import affine_transform  
+from env.object_base import State 
 
-from configs import (VehicleBox, ObsVehicleBox, 
-                     WHEEL_BASE, STEP_LENGTH, NUM_STEP, 
+from configs import (WHEEL_BASE, STEP_LENGTH, NUM_STEP, 
                      VALID_SPEED, VALID_STEER)
 
 
@@ -17,31 +16,6 @@ class Status(Enum):
     COLLIDED = 3 
     OUTBOUND = 4 
     OUTTIME = 5 
-
-
-class State: 
-    def __init__(self, raw_state:list): 
-        self.loc:Point = Point(raw_state[:2]) 
-        self.heading:float = raw_state[2] 
-        if len(raw_state) == 3: 
-            self.speed:float = 0.0 
-            self.steering:float = 0.0 
-        else:
-            self.speed:float = raw_state[3] 
-            self.steering:float = raw_state[4] 
-
-    def create_box(self, mode='ego_vehicle') -> LinearRing: 
-        cos_theta = np.cos(self.heading) 
-        sin_theta = np.sin(self.heading) 
-        mat = [cos_theta, -sin_theta, sin_theta, cos_theta, self.loc.x, self.loc.y] 
-        if mode == 'ego_vehicle': 
-            box = affine_transform(VehicleBox, mat) 
-        elif mode == 'obs_vehicle':
-            box = affine_transform(ObsVehicleBox, mat)
-        return  box
-    
-    def get_pose(self):
-        return (self.loc.x, self.loc.y, self.heading) 
     
 
 class KSModel(object):

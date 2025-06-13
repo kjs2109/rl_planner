@@ -13,8 +13,8 @@ try:
 except ImportError:
     raise DependencyNotInstalled("pygame is not installed, run `pip install pygame` to install it.") 
 
-from env.vehicle import Vehicle, Status, State  
-from env.map_base import Area 
+from env.vehicle import Vehicle, Status 
+from env.object_base import Area, State  
 from env.lidar_simulator import LidarSimlator  
 from env.campus_map import CampusMap 
 from env.observation_processor import Obs_Processor 
@@ -33,7 +33,7 @@ from configs import (
     NUM_STEP, STEP_LENGTH,
     MAX_DIST_TO_DEST, TOLERANT_TIME, 
     OBSTACLE_COLOR, NON_DRIVABLE_COLOR,
-    RENDER_TRAJ, 
+    RENDER_TRAJ, PED_TRAJ_COLORS
 )
 
 class CampusEnvBase(gym.Env):
@@ -142,6 +142,9 @@ class CampusEnvBase(gym.Env):
         for obstacle in self.map.obstacles: 
             if self.vehicle.box.intersects(obstacle.shape):
                 return True 
+        for pedestrian in self.map.pedestrians: 
+            if self.vehicle.box.intersects(pedestrian.create_box()):
+                return True
         for non_drivable_area in self.map.zoomed_non_drivable_area:
             if self.vehicle.box.intersects(non_drivable_area.shape):
                 return True
@@ -155,7 +158,7 @@ class CampusEnvBase(gym.Env):
         vehicle_box = Polygon(self.vehicle.box) 
         dest_box = Polygon(self.map.dest_box) 
         union_area = vehicle_box.intersection(dest_box).area
-        if union_area / dest_box.area > 0.8:
+        if union_area / dest_box.area > 0.95:
             return True
         return False
 
@@ -238,6 +241,9 @@ class CampusEnvBase(gym.Env):
         ``info`` (`OrderedDict`): other information.
         '''
         assert self.vehicle is not None, "The vehicle is not initialized." 
+        for pedestrian in self.map.pedestrians:
+            pedestrian.step()
+
         prev_state = self.vehicle.state  # State  
         collide = False  # True: 충돌 시 에피소드 종료. False: 충돌 시 self.check_collision 체크   
         self.collision = False  # 충돌 여부 (step 단위의 reward에 반영)
@@ -340,6 +346,16 @@ class CampusEnvBase(gym.Env):
                 # # 2. draw trajectory center point as a small circle
                 # center = (rear_x, rear_y) # self._coord_transform_point(rear_x, rear_y)
                 # pygame.draw.circle(surface, (150, 200, 10), center, 2)  # red dot, radius=2
+
+        for pedestrian in self.map.pedestrians:
+            if RENDER_TRAJ and len(pedestrian.trajectory) > 1:
+                render_len = min(len(pedestrian.trajectory),10)
+                for i in range(render_len):
+                    pedestrian_box = pedestrian.trajectory[-(render_len-i)].create_box('pedestrian') 
+                    points = self._coord_transform(pedestrian_box)
+                    temp_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+                    pygame.draw.polygon(temp_surface, PED_TRAJ_COLORS[-(render_len-i)], points)
+                    surface.blit(temp_surface, (0, 0))
         
         self._draw_hud(surface, self.vehicle, self.clock)  # , self.step_count, self.vehicle.dist_to_dest())
 
