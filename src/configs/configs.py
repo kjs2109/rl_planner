@@ -10,11 +10,27 @@ SEED=42
 
 
 ################# vehicle ################# 
-WHEEL_BASE = 1.9*1.1  # wheelbase
-FRONT_HANG = 0.32*1.1  # front hang length
-REAR_HANG = 0.32*1.1  # rear hang length
+# # operakit 
+# WHEEL_BASE = 1.9*1.1  # wheelbase
+# FRONT_HANG = 0.32*1.1  # front hang length
+# REAR_HANG = 0.32*1.1  # rear hang length
+# LENGTH = WHEEL_BASE+FRONT_HANG+REAR_HANG
+# WIDTH = (0.1+1.465+0.1)*1.1  # width 
+
+# VALID_SPEED = [-2.5, 2.5]
+# VALID_STEER = [-0.4887, 0.4887] 
+# # VALID_ACCEL = [-1.0, 1.0]
+# # VALID_ANGULAR_SPEED = [-0.5, 0.5]
+
+# ioniq
+WHEEL_BASE = 2.7*0.9  # wheelbase
+FRONT_HANG = 0.88*0.9 # front hang length
+REAR_HANG = 0.89*0.9  # rear hang length
 LENGTH = WHEEL_BASE+FRONT_HANG+REAR_HANG
-WIDTH = (0.1+1.465+0.1)*1.1  # width 
+WIDTH = (0.13+1.82+0.13)*0.9 # width 
+
+VALID_SPEED = [-2.5, 2.5]
+VALID_STEER = [-0.4887, 0.4887] 
 
 VehicleBox = LinearRing([
     (-REAR_HANG, -WIDTH/2), 
@@ -39,11 +55,6 @@ COLOR_POOL = [
     (255, 127, 80, 255), # coral
     (255, 215, 0, 255) # gold
 ]
-
-VALID_SPEED = [-2.5, 2.5]
-VALID_STEER = [-0.4887, 0.4887] 
-# VALID_ACCEL = [-1.0, 1.0]
-# VALID_ANGULAR_SPEED = [-0.5, 0.5]
 
 NUM_STEP = 10
 STEP_LENGTH = 0.05
@@ -80,8 +91,13 @@ TRAJ_RENDER_LEN = 20
 TRAJ_COLORS = list(map(tuple,np.linspace(\
     np.array(TRAJ_COLOR_LOW), np.array(TRAJ_COLOR_HIGH), TRAJ_RENDER_LEN, endpoint=True, dtype=np.uint8)))
 
+PED_TRAJ_COLOR_HIGH = (255, 10, 10, 255)
+PED_TRAJ_COLOR_LOW = (10, 10, 10, 10)
+PED_TRAJ_COLORS = list(map(tuple,np.linspace(\
+    np.array(PED_TRAJ_COLOR_LOW), np.array(PED_TRAJ_COLOR_HIGH), 10, endpoint=True, dtype=np.uint8)))
+
 # constraints 
-TOLERANT_TIME = 200
+TOLERANT_TIME = 300
 MAX_DIST_TO_DEST = 30
 
 # reward 
