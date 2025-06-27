@@ -1,5 +1,14 @@
 # RL Path Planner 
+### Agent Training
+![Image](https://github.com/user-attachments/assets/291c4661-3dc6-4234-8a3e-41471ef8b956)
 
+### Planning Simulator Evaluation (Integrated with the Autoware System)
+![Image](https://github.com/user-attachments/assets/c975c846-61dd-49d1-87b0-5309b8e405a0)
+
+### End-to-End Simulator Evaluation 
+![Image](https://github.com/user-attachments/assets/850a66bd-a0f7-4c88-ab67-63e3222b88f0)
+
+### Setup Environment 
 ```
 python3 -m venv rl_env
 source rl_env/bin/activate
