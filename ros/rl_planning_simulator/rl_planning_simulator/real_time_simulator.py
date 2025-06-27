@@ -7,13 +7,12 @@ import threading
 import numpy as np
 from rclpy.node import Node 
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped 
-from tf_transformations import euler_from_quaternion 
 from autoware_planning_msgs.msg import Trajectory, TrajectoryPoint
 from autoware_perception_msgs.msg import PredictedObjects
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion
 from std_srvs.srv import SetBool 
-from tf_transformations import quaternion_from_euler
+from tf_transformations import quaternion_from_euler, euler_from_quaternion 
 
 from collections import deque
 from shapely.affinity import affine_transform, translate, rotate  
@@ -66,16 +65,16 @@ class RealTimeSimulator(Node):
         pygame.display.set_caption("Trajectory Visualization")
         self.clock = pygame.time.Clock()
 
-        root_path = '/home/k/my_work/rl_planner'
+        root_path = '/home/k/rl_planner'
         self.simulator_1 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/campus_lanelet2_map_v1.osm'),
-            agent_path=os.path.join(root_path, 'data/exp7_SAC_99999.pt'), 
+            map_path=os.path.join(root_path, 'data/lanelet2_map.osm'),
+            agent_path=os.path.join(root_path, 'data/SAC_103999.pt'), 
             mode='short_term',
             tolerant_time=80
         )
         self.simulator_2 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/campus_lanelet2_map_v1.osm'),
-            agent_path=os.path.join(root_path, 'data/exp10_SAC_99999.pt'), 
+            map_path=os.path.join(root_path, 'data/lanelet2_map.osm'),
+            agent_path=os.path.join(root_path, 'data/SAC_103999.pt'), 
             mode='long_term', 
             tolerant_time=200
         )
@@ -226,9 +225,9 @@ class RealTimeSimulator(Node):
 
                     if self.rl_mode:
                         self.rl_stop_event.clear()
-                        # self.simulate_thread_1 = threading.Thread(target=self.simulate_loop_short, daemon=True)
+                        self.simulate_thread_1 = threading.Thread(target=self.simulate_loop_short, daemon=True)
                         self.simulate_thread_2 = threading.Thread(target=self.simulate_loop_long, daemon=True)
-                        # self.simulate_thread_1.start()
+                        self.simulate_thread_1.start()
                         self.simulate_thread_2.start()
                         print("RL mode activated")
                     else:
@@ -249,9 +248,9 @@ class RealTimeSimulator(Node):
             if not self.rl_mode:
                 self.rl_mode = True
                 self.rl_stop_event.clear()
-                # self.simulate_thread_1 = threading.Thread(target=self.simulate_loop_short, daemon=True)
+                self.simulate_thread_1 = threading.Thread(target=self.simulate_loop_short, daemon=True)
                 self.simulate_thread_2 = threading.Thread(target=self.simulate_loop_long, daemon=True)
-                # self.simulate_thread_1.start()
+                self.simulate_thread_1.start()
                 self.simulate_thread_2.start()
                 response.success = True
                 response.message = "RL mode activated"

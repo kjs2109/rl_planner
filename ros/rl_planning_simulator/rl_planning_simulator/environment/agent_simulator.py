@@ -195,21 +195,30 @@ class AgentSimulator():
                 simu_step_num += 1 
                 if simu_step_num: 
                     del self.vehicle.trajectory[-simu_step_num:-1] 
-            
+
             self.t += 1
             if arrive:
                 status = Status.ARRIVED 
-                for traj_state in self.vehicle.trajectory: 
-                    x, y = traj_state.loc.x, traj_state.loc.y 
-                    v = traj_state.speed
-                    heading = traj_state.heading 
-                    x, y, heading = self._ego_coord_transform_map(self.initial_pose, (x, y, heading))
-                    rl_trajectory.append((x, y, v, heading))
+                prev_state = self.vehicle.trajectory[0]
+                base_area = Polygon(prev_state.create_box()).area
+                for traj_state in self.vehicle.trajectory[1:]: 
+                    if traj_state.speed > 0.0:
+                        prev_state_box = prev_state.create_box()
+                        traj_state_box = traj_state.create_box()
+                        area = Polygon(prev_state_box).intersection(Polygon(traj_state_box)).area / base_area
+                        prev_state = traj_state
+                        if  area < 0.9: 
+                            x, y = traj_state.loc.x, traj_state.loc.y 
+                            v = traj_state.speed
+                            heading = traj_state.heading 
+                            x, y, heading = self._ego_coord_transform_map(self.initial_pose, (x, y, heading))
+                            rl_trajectory.append((x, y, v, heading)) 
+                    
                 done = True 
             else:
                 status = Status.COLLIDED if collide else self._check_status()  
 
             if status == Status.OUTTIME or self.t > self.tolerant_time: 
-                done = True 
+                done = True
 
-        return rl_trajectory, status 
+        return rl_trajectory, status
