@@ -6,7 +6,7 @@ from typing import Callable, List
 from shapely.geometry import Point, LinearRing 
 from shapely.affinity import affine_transform, translate, rotate  
 
-from configs import (VehicleBox, ObsVehicleBox, 
+from environment.configs import (VehicleBox, ObsVehicleBox, 
                      WHEEL_BASE, STEP_LENGTH, NUM_STEP, 
                      VALID_SPEED, VALID_STEER)
 

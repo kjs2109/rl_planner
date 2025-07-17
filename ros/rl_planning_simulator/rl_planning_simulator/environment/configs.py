@@ -8,13 +8,28 @@ from typing import OrderedDict
 device=torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu") 
 SEED=42 
 
-
 ################# vehicle ################# 
-WHEEL_BASE = 1.9  # wheelbase
-FRONT_HANG = 0.32  # front hang length
-REAR_HANG = 0.32  # rear hang length
+# # operakit 
+# WHEEL_BASE = 1.9*1.1  # wheelbase
+# FRONT_HANG = 0.32*1.1  # front hang length
+# REAR_HANG = 0.32*1.1  # rear hang length
+# LENGTH = WHEEL_BASE+FRONT_HANG+REAR_HANG
+# WIDTH = (0.1+1.465+0.1)*1.1  # width 
+
+# VALID_SPEED = [-2.5, 2.5]
+# VALID_STEER = [-0.4887, 0.4887] 
+# # VALID_ACCEL = [-1.0, 1.0]
+# # VALID_ANGULAR_SPEED = [-0.5, 0.5]
+
+# ioniq
+WHEEL_BASE = 2.7*0.9  # wheelbase
+FRONT_HANG = 0.88*0.9 # front hang length
+REAR_HANG = 0.89*0.9  # rear hang length
 LENGTH = WHEEL_BASE+FRONT_HANG+REAR_HANG
-WIDTH = (0.1+1.465+0.1)  # width 
+WIDTH = (0.13+1.82+0.13)*0.9 # width 
+
+VALID_SPEED = [-2.5, 2.5]
+VALID_STEER = [-0.4887, 0.4887] 
 
 VehicleBox = LinearRing([
     (-REAR_HANG, -WIDTH/2), 
@@ -22,6 +37,7 @@ VehicleBox = LinearRing([
     (FRONT_HANG + WHEEL_BASE,  WIDTH/2),
     (-REAR_HANG,  WIDTH/2)])
 
+# obstacle vehicle
 Obs_WHEEL_BASE = 2.2  
 Obs_FRONT_HANG = 0.9  # front hang length
 Obs_REAR_HANG = 0.9 
@@ -29,10 +45,10 @@ Obs_LENGTH = Obs_WHEEL_BASE+Obs_FRONT_HANG+Obs_REAR_HANG
 Obs_WIDTH = 1.9  
 
 ObsVehicleBox = LinearRing([
-    (-Obs_REAR_HANG, -Obs_WIDTH/2), 
-    (Obs_FRONT_HANG + Obs_WHEEL_BASE, -Obs_WIDTH/2), 
-    (Obs_FRONT_HANG + Obs_WHEEL_BASE,  Obs_WIDTH/2),
-    (-Obs_REAR_HANG,  Obs_WIDTH/2)])
+    (-Obs_LENGTH/2, -Obs_WIDTH/2), 
+    (Obs_LENGTH/2, -Obs_WIDTH/2), 
+    (Obs_LENGTH/2,  Obs_WIDTH/2),
+    (-Obs_LENGTH/2,  Obs_WIDTH/2)])
 
 COLOR_POOL = [
     (30, 144, 255, 255), # dodger blue
