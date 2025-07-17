@@ -181,7 +181,25 @@ class CampusEnvBase(gym.Env):
         time_cost = -np.tanh(self.t / (10*TOLERANT_TIME)) 
 
         # RS distance reward 
-        rs_dist_reward = 0.0 
+        # rs_dist_reward = 0.0 
+        left_dist = 0 
+        right_dist = 0 
+        lidar_range_array = self._get_lidar_observation() 
+        for i, r in enumerate(lidar_range_array): 
+            if 40 <= i <= 60: 
+                left_dist += r 
+            elif 140 <= i < 160: 
+                right_dist += r 
+
+        left_dist = left_dist / 21 
+        right_dist = right_dist / 21 
+        if left_dist < 3 and right_dist < 3: 
+            gap = abs(left_dist - right_dist)
+        else: 
+            gap = 0.0 
+
+        rs_dist_reward = -0.1 * gap 
+
 
         def get_angle_diff(angle1, angle2):
             angle_dif = math.acos(math.cos(angle1 - angle2))  # absolute angle difference 
