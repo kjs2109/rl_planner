@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <osm generator="VMB">
-  <MetaInfo format_version="1" map_version="2" validation_version="1"/>
+  <MetaInfo format_version="1" map_version="3" validation_version="1"/>
   <node id="1" lat="" lon="">
     <tag k="local_x" v="-24.0221"/>
     <tag k="local_y" v="5.6457"/>
@@ -8011,6 +8011,26 @@
     <tag k="local_y" v="-11.2073"/>
     <tag k="ele" v="-1.1506"/>
   </node>
+  <node id="2001" lat="" lon="">
+    <tag k="local_x" v="-118.4982"/>
+    <tag k="local_y" v="127.082"/>
+    <tag k="ele" v="-2.6317"/>
+  </node>
+  <node id="2002" lat="" lon="">
+    <tag k="local_x" v="-106.2818"/>
+    <tag k="local_y" v="123.2381"/>
+    <tag k="ele" v="-2.6506"/>
+  </node>
+  <node id="2004" lat="" lon="">
+    <tag k="local_x" v="-117.8979"/>
+    <tag k="local_y" v="128.9898"/>
+    <tag k="ele" v="-2.6317"/>
+  </node>
+  <node id="2005" lat="" lon="">
+    <tag k="local_x" v="-105.6815"/>
+    <tag k="local_y" v="125.1459"/>
+    <tag k="ele" v="-2.6506"/>
+  </node>
   <way id="1604">
     <nd ref="3"/>
     <nd ref="4"/>
@@ -9511,6 +9531,18 @@
     <nd ref="1602"/>
     <nd ref="1603"/>
     <nd ref="55"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+  </way>
+  <way id="2003">
+    <nd ref="2001"/>
+    <nd ref="2002"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+  </way>
+  <way id="2006">
+    <nd ref="2004"/>
+    <nd ref="2005"/>
     <tag k="type" v="line_thin"/>
     <tag k="subtype" v="solid"/>
   </way>
@@ -11756,6 +11788,15 @@
   <relation id="1981">
     <member type="way" role="left" ref="1730"/>
     <member type="way" role="right" ref="1731"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="speed_limit" v="10"/>
+    <tag k="location" v="urban"/>
+    <tag k="one_way" v="yes"/>
+  </relation>
+  <relation id="2007">
+    <member type="way" role="left" ref="2006"/>
+    <member type="way" role="right" ref="2003"/>
     <tag k="type" v="lanelet"/>
     <tag k="subtype" v="road"/>
     <tag k="speed_limit" v="10"/>
