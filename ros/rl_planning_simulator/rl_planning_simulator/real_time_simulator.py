@@ -58,7 +58,6 @@ class RealTimeSimulator(Node):
 
         self.trajectory_lock = threading.Lock() 
         self.rl_stop_event = threading.Event()
-        self.outtime_cnt = 0 
 
         pygame.init()
         self.screen = pygame.display.set_mode((600, 800))
@@ -67,22 +66,24 @@ class RealTimeSimulator(Node):
 
         root_path = '/home/k/rl_planner'
         self.simulator_1 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map.osm'),
-            agent_path=os.path.join(root_path, 'data/SAC_103999.pt'), 
+            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
+            agent_path=os.path.join(root_path, 'data/SAC_opt_199999_s.pt'), 
             mode='short_term',
-            tolerant_time=80
+            tolerant_time=40
         )
         self.simulator_2 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map.osm'),
-            agent_path=os.path.join(root_path, 'data/SAC_103999.pt'), 
+            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
+            agent_path=os.path.join(root_path, 'data/SAC_opt_103999_l.pt'), 
             mode='long_term', 
-            tolerant_time=200
+            tolerant_time=100
         )
         
         self.rl_trajectory = [] 
         self.rl_mode = False
         self.vis_traj = False 
         self.stop_cnt = 0
+        self.outtime_cnt_s = 0
+        self.outtime_cnt_l = 0 
 
     def yaw_to_quaternion(self, yaw):
         q = quaternion_from_euler(0, 0, yaw)
@@ -128,15 +129,21 @@ class RealTimeSimulator(Node):
 
     def trajectory_callback(self, msg:Trajectory):
         now = self.get_clock().now().nanoseconds
+        if len(msg.points) <= 3: 
+            msg = self.prev_traj_msg 
+        else: 
+            self.prev_traj_msg = msg
+
         traj_data = [] 
         for traj_point in msg.points:
             traj_pos = traj_point.pose.position 
             traj_yaw = self._get_quaternion_yaw(traj_point.pose.orientation)
             traj_data.append((traj_pos.x, traj_pos.y, traj_yaw))
+        
         # long term 
         long_term = traj_data[-1]
         # short term 
-        _short_term_idx = int(len(traj_data)*(0.4 - self.outtime_cnt*0.05))
+        _short_term_idx = int(len(traj_data)*(0.4 - self.outtime_cnt_s*0.05))
         short_term_idx = max(_short_term_idx, 25) if len(traj_data) > 25 else _short_term_idx
         short_term = traj_data[short_term_idx]  
         rel_distance = math.sqrt((short_term[0] - long_term[0])**2 + (short_term[1] - long_term[1])**2)
@@ -367,7 +374,7 @@ class RealTimeSimulator(Node):
             except:
                 dest_center = self._map_coord_transform_base(self.curr_pose, self.goal_center)  
 
-            if self.outtime_cnt != 0:  
+            if self.outtime_cnt_s != 0:  
                 cnt = 0 
                 while True:
                     dest_x, dest_y, dest_yaw = dest_center 
@@ -381,23 +388,23 @@ class RealTimeSimulator(Node):
                     if any(dest_box.intersects(area.shape) for area in self.processed_areas):
                         continue
                     dest_center = (dest_x, dest_y, dest_yaw)
-                    print(f'searching count: ', cnt, dest_center, self.outtime_cnt)
+                    print(f'searching count: ', cnt, dest_center, self.outtime_cnt_s)
                     break 
 
             self.simulator_1.reset(self.screen, self.processed_areas, self.processed_obs, self.curr_pose, dest_center)
             rl_trajectory, status = self.simulator_1.run()  
 
             with self.trajectory_lock: 
-                if len(self.rl_trajectory) <= len(rl_trajectory):
+                if len(self.rl_trajectory) <= len(rl_trajectory) or self.outtime_cnt_l > 2:
                     self.rl_trajectory = rl_trajectory
             
             if status == Status.OUTTIME or status == Status.COLLIDED:
-                self.outtime_cnt += 1 
+                self.outtime_cnt_s += 1 
             elif status == Status.ARRIVED: 
-                self.outtime_cnt = 0
+                self.outtime_cnt_s = 0
 
             tock = time.time() - tick 
-            print(f"[short] publish trajectory: {tock:.6f} sec | puslish rate: {1/tock:.2f} Hz | trajectory length: {len(self.rl_trajectory)}")
+            print(f"[short: {status.name}] outtime: {self.outtime_cnt_s} | publish trajectory: {tock:.6f} sec | trajectory length: {len(rl_trajectory)}")
         
     def simulate_loop_long(self):             
         while rclpy.ok() and not self.rl_stop_event.is_set():
@@ -411,11 +418,17 @@ class RealTimeSimulator(Node):
             self.simulator_2.reset(self.screen, self.processed_areas, self.processed_obs, self.curr_pose, dest_center)
             rl_trajectory, status = self.simulator_2.run()  
 
-            with self.trajectory_lock: 
-                self.rl_trajectory = rl_trajectory
-
+            if len(rl_trajectory) != 0:
+                with self.trajectory_lock: 
+                    self.rl_trajectory = rl_trajectory
+            
+            if status == Status.OUTTIME or status == Status.COLLIDED:
+                self.outtime_cnt_l += 1 
+            elif status == Status.ARRIVED: 
+                self.outtime_cnt_l = 0
+                
             tock = time.time() - tick
-            print(f"[long] publish trajectory: {tock:.6f} sec | puslish rate: {1/tock:.2f} Hz | trajectory length: {len(self.rl_trajectory)}")
+            print(f"[long: {status.name}] outtime: {self.outtime_cnt_l} | publish trajectory: {tock:.6f} sec | trajectory length: {len(rl_trajectory)}")
 
 def main(args=None):
     rclpy.init(args=args)
