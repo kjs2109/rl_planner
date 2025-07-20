@@ -66,13 +66,13 @@ class RealTimeSimulator(Node):
 
         root_path = '/home/k/rl_planner'
         self.simulator_1 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_199999_s.pt'), 
             mode='short_term',
             tolerant_time=40
         )
         self.simulator_2 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_103999_l.pt'), 
             mode='long_term', 
             tolerant_time=100
@@ -319,9 +319,10 @@ class RealTimeSimulator(Node):
             pygame.draw.polygon(surface, NON_DRIVABLE_COLOR, self._coord_transform_poly(area))
         for obstacle in obs_data: 
             pygame.draw.polygon(surface, OBSTACLE_COLOR, self._coord_transform_poly(obstacle))
-        for traj_point in traj_data: 
-            x, y, yaw = traj_point 
-            pygame.draw.circle(surface, (0, 0, 255), self._coord_transform_point(x, y), 3)
+        if not self.vis_traj:
+            for traj_point in traj_data: 
+                x, y, yaw = traj_point 
+                pygame.draw.circle(surface, (0, 0, 255), self._coord_transform_point(x, y), 3)
             
         if self.start_center:
             start_center = self._map_coord_transform_base(self.curr_pose, self.start_center)
@@ -335,9 +336,10 @@ class RealTimeSimulator(Node):
         for traj_point in self.rl_trajectory[10::3]:  
             x, y, v, yaw = traj_point
             x, y, yaw = self._map_coord_transform_base(self.curr_pose, (x, y, yaw))
-            pygame.draw.circle(surface, (0, 255, 0), self._coord_transform_point(x, y), 3)
-            if self.vis_traj:
-                pygame.draw.polygon(surface, (30, 144, 255), self._coord_transform_poly(State((x, y, yaw)).create_box()), width=1)
+            if self.rl_mode:
+                pygame.draw.circle(surface, (0, 255, 0), self._coord_transform_point(x, y), 3)
+                if self.vis_traj:
+                    pygame.draw.polygon(surface, (30, 144, 255), self._coord_transform_poly(State((x, y, yaw)).create_box()), width=1)
 
     def _publish_trajectory(self):
         traj_msg = Trajectory()
@@ -360,7 +362,7 @@ class RealTimeSimulator(Node):
             quat = self.yaw_to_quaternion(yaw)
             traj_pt.pose.orientation = quat
 
-            traj_pt.longitudinal_velocity_mps = v
+            traj_pt.longitudinal_velocity_mps = v * 2.5
             traj_msg.points.append(traj_pt)
 
         self.trajectory_pub_.publish(traj_msg)
@@ -397,6 +399,7 @@ class RealTimeSimulator(Node):
             with self.trajectory_lock: 
                 if len(self.rl_trajectory) <= len(rl_trajectory) or self.outtime_cnt_l > 2:
                     self.rl_trajectory = rl_trajectory
+                    time.sleep(2.0)
             
             if status == Status.OUTTIME or status == Status.COLLIDED:
                 self.outtime_cnt_s += 1 
@@ -421,6 +424,7 @@ class RealTimeSimulator(Node):
             if len(rl_trajectory) != 0:
                 with self.trajectory_lock: 
                     self.rl_trajectory = rl_trajectory
+                    time.sleep(2.0)
             
             if status == Status.OUTTIME or status == Status.COLLIDED:
                 self.outtime_cnt_l += 1 
