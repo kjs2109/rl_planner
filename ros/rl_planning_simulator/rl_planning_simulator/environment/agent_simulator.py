@@ -201,7 +201,7 @@ class AgentSimulator():
                 status = Status.ARRIVED 
                 prev_state = self.vehicle.trajectory[0]
                 base_area = Polygon(prev_state.create_box()).area
-                for traj_state in self.vehicle.trajectory[1:]: 
+                for traj_state in self.vehicle.trajectory[1::3]: 
                     if traj_state.speed > 0.0:
                         prev_state_box = prev_state.create_box()
                         traj_state_box = traj_state.create_box()

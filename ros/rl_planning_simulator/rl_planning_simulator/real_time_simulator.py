@@ -18,6 +18,7 @@ from collections import deque
 from shapely.affinity import affine_transform, translate, rotate  
 from shapely.geometry import Polygon, Point, LinearRing 
 
+from path_smoother import smooth_trajectory
 from environment.utils import random_gaussian_num, random_uniform_num
 from environment.map_base import Area
 from environment.agent_simulator import AgentSimulator 
@@ -66,18 +67,19 @@ class RealTimeSimulator(Node):
 
         root_path = '/home/k/rl_planner'
         self.simulator_1 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_199999_s.pt'), 
             mode='short_term',
             tolerant_time=40
         )
         self.simulator_2 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_103999_l.pt'), 
             mode='long_term', 
             tolerant_time=100
         )
         
+        self.is_stop = True 
         self.rl_trajectory = [] 
         self.rl_mode = False
         self.vis_traj = False 
@@ -125,7 +127,11 @@ class RealTimeSimulator(Node):
         odom_pos = msg.pose.pose.position 
         odom_yaw = self._get_quaternion_yaw(msg.pose.pose.orientation)
         odom_data = (odom_pos.x, odom_pos.y, odom_yaw)
+        self.is_stop = self._stop_filter(msg.twist.twist)
         self.odometry_buffer.append((now, odom_data))
+
+    def _stop_filter(self, twist): 
+        return twist.linear.x < 0.5 and twist.linear.y < 0.5 and twist.angular.z < 0.5
 
     def trajectory_callback(self, msg:Trajectory):
         now = self.get_clock().now().nanoseconds
@@ -333,7 +339,7 @@ class RealTimeSimulator(Node):
         
         pygame.draw.polygon(surface, (30, 144, 255), self._coord_transform_poly(State((0, 0, math.pi/2)).create_box()))
         
-        for traj_point in self.rl_trajectory[10::3]:  
+        for traj_point in self.rl_trajectory[3:]:  
             x, y, v, yaw = traj_point
             x, y, yaw = self._map_coord_transform_base(self.curr_pose, (x, y, yaw))
             if self.rl_mode:
@@ -398,6 +404,7 @@ class RealTimeSimulator(Node):
 
             with self.trajectory_lock: 
                 if len(self.rl_trajectory) <= len(rl_trajectory) or self.outtime_cnt_l > 2:
+                    # rl_trajectory = smooth_trajectory_2d_xy(rl_trajectory)
                     self.rl_trajectory = rl_trajectory
                     time.sleep(2.0)
             
@@ -423,6 +430,7 @@ class RealTimeSimulator(Node):
 
             if len(rl_trajectory) != 0:
                 with self.trajectory_lock: 
+                    rl_trajectory = smooth_trajectory(rl_trajectory)
                     self.rl_trajectory = rl_trajectory
                     time.sleep(2.0)
             
