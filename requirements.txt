@@ -17,3 +17,4 @@ torchaudio==2.5.1+cu121
 einops
 tqdm
 tensorboard
+cvxpy
