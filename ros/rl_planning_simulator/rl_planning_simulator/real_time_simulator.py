@@ -67,13 +67,13 @@ class RealTimeSimulator(Node):
 
         root_path = '/home/k/rl_planner'
         self.simulator_1 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_199999_s.pt'), 
             mode='short_term',
             tolerant_time=40
         )
         self.simulator_2 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_103999_l.pt'), 
             mode='long_term', 
             tolerant_time=100
@@ -299,7 +299,7 @@ class RealTimeSimulator(Node):
                     for obs in obs_data: 
                         class_num, obs_point = obs['class'], obs['pose']
                         pose = self._map_coord_transform_base(self.curr_pose, obs_point)
-                        if int(class_num) == 1: 
+                        if int(class_num) == 1 or int(class_num) == 2 or int(class_num) == 3: 
                             self.processed_obs.append(Area(shape=State(pose).create_box(mode='obs_vehicle'), subtype="obstacle"))
                         elif int(class_num) == 7: 
                             self.processed_obs.append(Area(shape=State(pose).create_box(mode='pedestrian'), subtype="obstacle"))
