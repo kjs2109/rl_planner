@@ -25,6 +25,7 @@ class AgentSimulator():
         self.lidar = LidarSimlator(LIDAR_RANGE, LIDAR_NUM)
 
         self.matrix = self.coord_transform_matrix()
+        self.velo_scale = 2.5 
 
     def coord_transform_matrix(self) -> list:
         k = K
@@ -170,7 +171,7 @@ class AgentSimulator():
         rl_trajectory = []
         while not done:
             observation = self._get_observation()
-            action, _ = self.rl_agent.get_action(observation) 
+            action, _ = self.rl_agent.get_action(observation, mode='infer') 
             # if (self.processed_obs == observation['target']).all():
             #     action = self.env.action_space.sample()
      
@@ -195,7 +196,7 @@ class AgentSimulator():
                 simu_step_num += 1 
                 if simu_step_num: 
                     del self.vehicle.trajectory[-simu_step_num:-1] 
-
+            
             self.t += 1
             if arrive:
                 status = Status.ARRIVED 
@@ -209,7 +210,7 @@ class AgentSimulator():
                         prev_state = traj_state
                         if  area < 0.9: 
                             x, y = traj_state.loc.x, traj_state.loc.y 
-                            v = traj_state.speed
+                            v = traj_state.speed * self.velo_scale
                             heading = traj_state.heading 
                             x, y, heading = self._ego_coord_transform_map(self.initial_pose, (x, y, heading))
                             rl_trajectory.append((x, y, v, heading)) 
@@ -220,5 +221,6 @@ class AgentSimulator():
 
             if status == Status.OUTTIME or self.t > self.tolerant_time: 
                 done = True
-
+                
+        print(f'step_num: {self.t}/{self.tolerant_time}', end=' ')
         return rl_trajectory, status

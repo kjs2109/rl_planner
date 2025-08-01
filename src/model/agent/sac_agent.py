@@ -139,6 +139,23 @@ class SACAgent(AgentBase):
             
         return dist
     
+    def _actor_forward_deterministic(self, obs) -> torch.distributions.Distribution:
+        observation = deepcopy(obs)
+        if self.configs.state_norm:
+            observation = self.state_normalize.state_norm(observation)
+        observation = self.obs2tensor(observation)
+        
+        with torch.no_grad():
+            policy_dist = self.actor_net(observation)
+            if len(policy_dist.shape) > 1 and policy_dist.shape[0] > 1:
+                raise NotImplementedError
+            mean =  torch.clamp(policy_dist,-1,1)  
+            log_std = self.log_std.expand_as(mean)  # To make 'log_std' have the same dimension as 'mean'
+            std = torch.tensor([[0.0001, 0.0001]], device='cuda:0') 
+            dist = Normal(mean, std)
+            
+        return dist
+    
     def _post_process_action(self, action_dist:torch.distributions.Distribution , action_mask=None):
         if action_mask is not None: 
             pass 
@@ -160,7 +177,7 @@ class SACAgent(AgentBase):
 
         return action, other_info
 
-    def get_action(self, obs: np.ndarray):
+    def get_action(self, obs: np.ndarray, mode='train'):
         '''Take action based on one observation. 
 
         Args:
@@ -171,7 +188,13 @@ class SACAgent(AgentBase):
                 If the action space is continuous, the action is an (np.ndarray).
             log_prob(np.ndarray): the log probability of taken action.
         '''
-        dist = self._actor_forward(obs)
+        if mode == 'train': 
+            dist = self._actor_forward(obs) 
+        elif mode == 'infer': 
+            dist = self._actor_forward_deterministic(obs) 
+        else: 
+            raise ValueError("Invalid mode. Choose 'train' or 'infer'.")
+        
         action, log_prob = self._post_process_action(dist)
                 
         return action, log_prob

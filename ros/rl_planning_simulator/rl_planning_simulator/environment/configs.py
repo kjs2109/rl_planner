@@ -61,8 +61,8 @@ VALID_STEER = [-0.4887, 0.4887]
 # VALID_ACCEL = [-1.0, 1.0]
 # VALID_ANGULAR_SPEED = [-0.5, 0.5]
 
-NUM_STEP = 10
-STEP_LENGTH = 0.05
+NUM_STEP = 1 
+STEP_LENGTH = 0.5
 
 
 ################# env ################# 

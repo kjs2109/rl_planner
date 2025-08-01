@@ -76,7 +76,7 @@ class RealTimeSimulator(Node):
             map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_103999_l.pt'), 
             mode='long_term', 
-            tolerant_time=100
+            tolerant_time=80
         )
         
         self.is_stop = True 
@@ -86,6 +86,7 @@ class RealTimeSimulator(Node):
         self.stop_cnt = 0
         self.outtime_cnt_s = 0
         self.outtime_cnt_l = 0 
+        self.dest_s = None 
 
     def yaw_to_quaternion(self, yaw):
         q = quaternion_from_euler(0, 0, yaw)
@@ -149,7 +150,7 @@ class RealTimeSimulator(Node):
         # long term 
         long_term = traj_data[-1]
         # short term 
-        _short_term_idx = int(len(traj_data)*(0.4 - self.outtime_cnt_s*0.05))
+        _short_term_idx = int(len(traj_data)*(0.5 - self.outtime_cnt_s*0.05))
         short_term_idx = max(_short_term_idx, 25) if len(traj_data) > 25 else _short_term_idx
         short_term = traj_data[short_term_idx]  
         rel_distance = math.sqrt((short_term[0] - long_term[0])**2 + (short_term[1] - long_term[1])**2)
@@ -367,8 +368,7 @@ class RealTimeSimulator(Node):
 
             quat = self.yaw_to_quaternion(yaw)
             traj_pt.pose.orientation = quat
-
-            traj_pt.longitudinal_velocity_mps = v * 2.5
+            traj_pt.longitudinal_velocity_mps = v 
             traj_msg.points.append(traj_pt)
 
         self.trajectory_pub_.publish(traj_msg)
@@ -403,10 +403,10 @@ class RealTimeSimulator(Node):
             rl_trajectory, status = self.simulator_1.run()  
 
             with self.trajectory_lock: 
-                if len(self.rl_trajectory) <= len(rl_trajectory) or self.outtime_cnt_l > 2:
-                    # rl_trajectory = smooth_trajectory_2d_xy(rl_trajectory)
+                if len(self.rl_trajectory) <= len(rl_trajectory) or self.outtime_cnt_l > 1:
+                    # rl_trajectory = smooth_trajectory(rl_trajectory)
                     self.rl_trajectory = rl_trajectory
-                    time.sleep(2.0)
+                    time.sleep(1.5)
             
             if status == Status.OUTTIME or status == Status.COLLIDED:
                 self.outtime_cnt_s += 1 
@@ -431,8 +431,9 @@ class RealTimeSimulator(Node):
             if len(rl_trajectory) != 0:
                 with self.trajectory_lock: 
                     rl_trajectory = smooth_trajectory(rl_trajectory)
+                    if len(self.rl_trajectory) <25: 
+                        time.sleep(1.5) 
                     self.rl_trajectory = rl_trajectory
-                    time.sleep(2.0)
             
             if status == Status.OUTTIME or status == Status.COLLIDED:
                 self.outtime_cnt_l += 1 
