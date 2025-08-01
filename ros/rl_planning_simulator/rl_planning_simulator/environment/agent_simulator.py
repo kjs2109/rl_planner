@@ -222,5 +222,5 @@ class AgentSimulator():
             if status == Status.OUTTIME or self.t > self.tolerant_time: 
                 done = True
                 
-        print(f'step_num: {self.t}/{self.tolerant_time}', end=' ')
+        # print(f'step_num: {self.t}/{self.tolerant_time}', end=' ')
         return rl_trajectory, status

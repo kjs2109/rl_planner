@@ -67,13 +67,13 @@ class RealTimeSimulator(Node):
 
         root_path = '/home/k/rl_planner'
         self.simulator_1 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_199999_s.pt'), 
             mode='short_term',
             tolerant_time=40
         )
         self.simulator_2 = AgentSimulator(
-            map_path=os.path.join(root_path, 'data/lanelet2_map_carla.osm'),
+            map_path=os.path.join(root_path, 'data/lanelet2_map_local.osm'),
             agent_path=os.path.join(root_path, 'data/SAC_opt_103999_l.pt'), 
             mode='long_term', 
             tolerant_time=80
@@ -400,7 +400,7 @@ class RealTimeSimulator(Node):
                     break 
 
             self.simulator_1.reset(self.screen, self.processed_areas, self.processed_obs, self.curr_pose, dest_center)
-            rl_trajectory, status = self.simulator_1.run()  
+            rl_trajectory, status = self.simulator_1.run() 
 
             with self.trajectory_lock: 
                 if len(self.rl_trajectory) <= len(rl_trajectory) or self.outtime_cnt_l > 1:
@@ -431,7 +431,7 @@ class RealTimeSimulator(Node):
             if len(rl_trajectory) != 0:
                 with self.trajectory_lock: 
                     rl_trajectory = smooth_trajectory(rl_trajectory)
-                    if len(self.rl_trajectory) <25: 
+                    if len(self.rl_trajectory) <10: 
                         time.sleep(1.5) 
                     self.rl_trajectory = rl_trajectory
             
