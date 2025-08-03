@@ -2,7 +2,7 @@ import cvxpy as cp
 import numpy as np
 import math
 
-def smooth_trajectory(trajectory, smooth_weight=1000.0, lat_error_weight=50.0):
+def smooth_trajectory(trajectory, smooth_weight=1000.0, lat_error_weight=500.0):
     if len(trajectory) < 3:
         return trajectory 
 
