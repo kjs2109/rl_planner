@@ -1,12 +1,38 @@
 # RL Path Planner 
-### Agent Training
-![Image](https://github.com/user-attachments/assets/291c4661-3dc6-4234-8a3e-41471ef8b956)
 
-### Planning Simulator Evaluation (Integrated with the Autoware System)
-![Image](https://github.com/user-attachments/assets/c975c846-61dd-49d1-87b0-5309b8e405a0)
+### Agent Training & CARLA Simulator Evaluation
+<table>
+  <tr>
+    <td valign="top">
+      <h4 style="padding-bottom: 20px;">Training Environment</h4>
+      <div>
+        <img src="https://github.com/user-attachments/assets/291c4661-3dc6-4234-8a3e-41471ef8b956" width="280">
+      </div>
+    </td>
+    <td valign="top">
+      <h4>Illegally Parked Vehicle Scenario</h4>
+      <video src="https://github.com/user-attachments/assets/27b09c1a-b79b-494a-a4c1-7b91ba153d57" width="450" controls></video>
+    </td>
+  </tr>
+</table>
 
-### End-to-End Simulator Evaluation 
-![Image](https://github.com/user-attachments/assets/850a66bd-a0f7-4c88-ab67-63e3222b88f0)
+### Real-world Vehicle Validation
+<table>
+  <tr>
+    <td valign="top">
+      <ul>
+        <li>도로유형: 1, 시나리오: 1</li>
+      </ul>
+      <video src="https://github.com/user-attachments/assets/b31641c5-26be-46b5-9aec-cdf5ccccd4ea" controls></video>
+    </td>
+    <td valign="top">
+      <ul>
+        <li>도로유형: 3, 시나리오: 1</li>
+      </ul>
+      <video src="https://github.com/user-attachments/assets/82f3836f-80f1-4ecf-a3d8-7d65839a636d" controls></video>
+    </td>
+  </tr>
+</table>
 
 ### Setup Environment 
 ```
@@ -24,3 +50,6 @@ paper
 
 code 
 - https://github.com/jiamiya/HOPE
+> M. Jiang, Y. Li, S. Zhang, S. Chen, C. Wang, and M. Yang.  
+> HOPE: A Reinforcement Learning-based Hybrid Policy Path Planner for Diverse Parking Scenarios.  
+> arXiv preprint arXiv:2405.20579, 2024.
