@@ -6,12 +6,12 @@
     <td valign="top">
       <h4 style="padding-bottom: 20px;">Training Environment</h4>
       <div>
-        <img src="https://github.com/user-attachments/assets/291c4661-3dc6-4234-8a3e-41471ef8b956" width="280">
+        <img src="https://github.com/user-attachments/assets/291c4661-3dc6-4234-8a3e-41471ef8b956" width="220">
       </div>
     </td>
     <td valign="top">
       <h4>Illegally Parked Vehicle Scenario</h4>
-      <video src="https://github.com/user-attachments/assets/27b09c1a-b79b-494a-a4c1-7b91ba153d57" width="450" controls></video>
+      <video src="https://github.com/user-attachments/assets/27b09c1a-b79b-494a-a4c1-7b91ba153d57" controls></video>
     </td>
   </tr>
 </table>
